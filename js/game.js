@@ -398,18 +398,25 @@ export class Game {
 
   _tryKnife() {
     if (this.gameOver || this.victory || this.paused) return;
-    this.knifeTimer = 0.18; // show slash for 180 ms
+    this.knifeTimer = 0.18;
+    this.audio.playShoot();
+
     const reach = 80;
+    const px = this.player.x;
+    const pw = this.player.width;
     const pCY = this.player.y + this.player.height / 2;
+
+    const inReach = (cx, cy) => {
+      const inFront = this.player.facingRight
+        ? cx > px && cx < px + pw + reach
+        : cx < px + pw && cx > px - reach;
+      return inFront && Math.abs(pCY - cy) < 72;
+    };
+
+    // Boxes
     for (const box of this.boxes) {
       if (!box.alive || box.state !== 'normal') continue;
-      const bCX = box.x + box.width / 2;
-      const bCY = box.y + box.height / 2;
-      const inFront = this.player.facingRight
-        ? bCX > this.player.x && bCX < this.player.x + this.player.width + reach
-        : bCX < this.player.x + this.player.width && bCX > this.player.x - reach;
-      if (inFront && Math.abs(pCY - bCY) < 72) {
-        this.audio.playShoot();
+      if (inReach(box.x + box.width / 2, box.y + box.height / 2)) {
         if (box instanceof BonusBox) {
           box.hit(true);
           this._applyBonusReward(box.reward);
@@ -420,7 +427,26 @@ export class Game {
           box.hit(false);
           this.onWrongHit(box);
         }
-        break;
+        return;
+      }
+    }
+
+    // Turrets — one knife hit destroys them
+    for (const t of this.turrets) {
+      if (!t.alive) continue;
+      if (inReach(t.x + t.width / 2, t.y + t.height / 2)) {
+        if (t.takeDamage()) this.score += 75;
+        return;
+      }
+    }
+
+    // Monsters — one knife hit does 1 damage (same as a bullet)
+    for (const m of this.monsters) {
+      if (!m.alive) continue;
+      if (inReach(m.x + m.width / 2, m.y + m.height / 2)) {
+        m.takeDamage();
+        if (!m.alive) this.score += 50;
+        return;
       }
     }
   }
@@ -446,6 +472,11 @@ export class Game {
     }
     this.player.vy = 0;
     this.player.vx = 0;
+    this.player.tumbling = false;
+    this.player.tumbleAngle = 0;
+    // Reset word timer so player has a full attempt after respawn
+    this.timerMax = this.getTimerMax();
+    this.timer = this.timerMax;
     // Brief invincibility so player isn't immediately hit again
     this.player.invincibleTimer = Math.max(this.player.invincibleTimer, 1.5);
   }
@@ -516,6 +547,16 @@ export class Game {
     if (this.player.x < this.cameraX + 20) {
       this.player.x = this.cameraX + 20;
       this.player.vx = Math.max(0, this.player.vx);
+    }
+
+    // Start tumbling well before the player disappears off the bottom
+    if (this.player.y + this.player.height > this.level.groundY - 80 && !this.player.tumbling) {
+      this.player.tumbling = true;
+      this.player.tumbleAngle = 0;
+    }
+    if (this.player.tumbling) {
+      // Spin speed increases with fall velocity for a satisfying tumble
+      this.player.tumbleAngle += (Math.PI * 2 + Math.abs(this.player.vy) * 0.004) * dt;
     }
 
     // Player fell off the bottom of the level
@@ -932,10 +973,28 @@ export class Game {
       ctx.font = 'bold 48px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('PAUSED', cw / 2, ch / 2);
-      ctx.fillStyle = '#6a9a6a';
-      ctx.font = '18px monospace';
-      ctx.fillText('P / ESC to resume', cw / 2, ch / 2 + 55);
+      ctx.fillText('PAUSED', cw / 2, ch / 2 - 30);
+
+      // Controls reminder
+      const controls = [
+        ['← → / A D', 'Move'],
+        ['↑ / W / Space', 'Jump  (double jump in air)'],
+        ['Z / Ctrl / Click', 'Shoot'],
+        ['Right Shift', 'Knife (melee)'],
+        ['P / ESC', 'Pause / Resume'],
+      ];
+      ctx.font = '14px monospace';
+      const colX = cw / 2 - 160;
+      let cy2 = ch / 2 + 20;
+      for (const [key, action] of controls) {
+        ctx.fillStyle = '#a0e080';
+        ctx.textAlign = 'right';
+        ctx.fillText(key, colX + 140, cy2);
+        ctx.fillStyle = '#6a9a6a';
+        ctx.textAlign = 'left';
+        ctx.fillText(action, colX + 155, cy2);
+        cy2 += 22;
+      }
       ctx.restore();
     }
 

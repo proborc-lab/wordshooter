@@ -11,9 +11,11 @@ export class Level {
     this.lastPlatformTier = 0;
     this.groundY = canvas.height - 60;
     this.tiers = [
-      canvas.height - 80,   // low
-      canvas.height - 200,  // mid
-      canvas.height - 320   // high
+      canvas.height - 80,   // tier 0 — ground level
+      canvas.height - 175,  // tier 1 — low
+      canvas.height - 275,  // tier 2 — mid-low
+      canvas.height - 375,  // tier 3 — mid-high
+      canvas.height - 470,  // tier 4 — high
     ];
     this.bgStars = this._generateBgElements();
     this.difficulty = 0; // set externally by Game when correctCount milestones hit
@@ -56,43 +58,38 @@ export class Level {
   }
 
   _generateNextPlatform() {
-    const minGap = 70;
-    const maxGap = 180;
+    const minGap = 55;
+    const maxGap = 150;
     const gap = minGap + Math.random() * (maxGap - minGap);
     const x = this.lastPlatformX + gap;
-    const width = 120 + Math.random() * 150;
+    const width = 80 + Math.random() * 130;
 
-    // Pick tier: can jump max 1 tier up, can fall multiple tiers
-    let tierDelta;
+    // Richer tier transitions across 5 tiers
+    // Can jump up 1 tier freely, up 2 with a double-jump; can fall freely
     const rand = Math.random();
-    if (rand < 0.35) {
-      tierDelta = -1; // go down
-    } else if (rand < 0.65) {
-      tierDelta = 0; // same level
-    } else {
-      tierDelta = 1; // go up one
-    }
+    let tierDelta;
+    if      (rand < 0.15) tierDelta = -2; // drop two levels
+    else if (rand < 0.35) tierDelta = -1; // drop one
+    else if (rand < 0.55) tierDelta =  0; // stay
+    else if (rand < 0.80) tierDelta =  1; // climb one
+    else                  tierDelta =  2; // climb two (needs double-jump)
 
     let newTier = this.lastPlatformTier + tierDelta;
-    newTier = Math.max(0, Math.min(2, newTier));
+    newTier = Math.max(0, Math.min(this.tiers.length - 1, newTier));
 
-    // Occasionally add a ground section
-    if (Math.random() < 0.1) {
-      newTier = 0;
-    }
+    // Occasional ground-level reset for breathing room
+    if (Math.random() < 0.07) newTier = 0;
 
-    const y = this.tiers[newTier] + (Math.random() - 0.5) * 30;
+    const y = this.tiers[newTier] + (Math.random() - 0.5) * 20;
 
-    // Pick tile colors based on tier/position
-    const tileColors = ['#2d4a2d', '#3a5a3a', '#4a6a4a'];
-    const accentColors = ['#1a3a1a', '#253a25', '#304a30'];
+    // Colour deepens with height
+    const tileColors   = ['#2d4a2d', '#325233', '#3a5a3a', '#426242', '#4a6a4a'];
+    const accentColors = ['#1a3a1a', '#1f3f1f', '#253a25', '#2a4a2a', '#304a30'];
 
     const platform = {
-      x,
-      y,
-      width,
-      height: 20 + Math.random() * 10,
-      tileColor: tileColors[newTier],
+      x, y, width,
+      height: 18 + Math.random() * 10,
+      tileColor:   tileColors[newTier],
       accentColor: accentColors[newTier],
       tier: newTier
     };
@@ -105,6 +102,25 @@ export class Level {
     }
 
     this.platforms.push(platform);
+
+    // ~42% chance: add a second platform nearby at a different tier
+    // (creates branching paths — player can go high or low)
+    if (Math.random() < 0.42) {
+      const altTier = Math.max(0, Math.min(this.tiers.length - 1,
+        newTier + (Math.random() < 0.5 ? 2 : -2)));
+      if (altTier !== newTier) {
+        const altW = 70 + Math.random() * 100;
+        const altX = x + width / 2 + 30 + Math.random() * 60;
+        const altY = this.tiers[altTier] + (Math.random() - 0.5) * 20;
+        this.platforms.push({
+          x: altX, y: altY, width: altW,
+          height: 18 + Math.random() * 8,
+          tileColor:   tileColors[altTier],
+          accentColor: accentColors[altTier],
+          tier: altTier
+        });
+      }
+    }
 
     this.lastPlatformX = x + width;
     this.lastPlatformY = y;
@@ -291,7 +307,7 @@ export class Level {
       const py = this.tiers[1];
       const fallback = {
         x: newX, y: py, width: pw, height: 20,
-        tileColor: '#2d4a2d', accentColor: '#3a5a3a', tier: 1
+        tileColor: '#3a5a3a', accentColor: '#253a25', tier: 2
       };
       this.platforms.push(fallback);
       selected.push(fallback);

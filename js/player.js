@@ -24,6 +24,10 @@ export class Player {
     this.wasJumping = false;
     this.walkFrame = 0;
     this.walkTimer = 0;
+    this.tumbling = false;
+    this.tumbleAngle = 0;
+    this.flipTimer = 0;   // counts down from 0.6 on double-jump
+    this.flipAngle = 0;   // 0 → 2π over the flip duration
   }
 
   update(dt, platforms, keys) {
@@ -61,10 +65,15 @@ export class Player {
     // Jump
     const jumpPressed = keys['ArrowUp'] || keys['w'] || keys['W'] || keys[' '];
     if (jumpPressed && !this.wasJumping && this.jumpsLeft > 0) {
+      const isDoubleJump = this.jumpsLeft === 1 && !this.onGround;
       this.vy = jumpVel;
       this.jumpsLeft--;
       this.wasJumping = true;
       this._onJump && this._onJump();
+      if (isDoubleJump) {
+        this.flipTimer = 0.6;
+        this.flipAngle = 0;
+      }
     }
     if (!jumpPressed) {
       this.wasJumping = false;
@@ -101,6 +110,18 @@ export class Player {
           }
         }
       }
+    }
+
+    // Stop tumbling the moment the player lands
+    if (this.onGround && this.tumbling) {
+      this.tumbling = false;
+      this.tumbleAngle = 0;
+    }
+
+    // Double-jump flip animation
+    if (this.flipTimer > 0) {
+      this.flipTimer -= dt;
+      this.flipAngle = (1 - Math.max(0, this.flipTimer) / 0.6) * Math.PI * 2;
     }
 
     // Shoot cooldown
@@ -167,10 +188,40 @@ export class Player {
       return;
     }
 
-    // Pick sprite direction and animation frame
     const spriteName = this.facingRight ? 'playerRight' : 'playerLeft';
     const frame = this.onGround ? this.walkFrame : 3;
-    Sprites.draw(ctx, spriteName, x, y, { frame, scale: 2 });
+
+    // Tumbling fall — spin with distress marker
+    if (this.tumbling) {
+      ctx.save();
+      ctx.translate(x + w / 2, y + h / 2);
+      ctx.rotate(this.tumbleAngle);
+      const tumblingName = Math.floor(this.tumbleAngle / (Math.PI * 0.5)) % 2 === 0
+        ? 'playerRight' : 'playerLeft';
+      Sprites.draw(ctx, tumblingName, -w / 2, -h / 2, { frame: 3, scale: 2 });
+      ctx.rotate(-this.tumbleAngle); // keep text upright
+      ctx.fillStyle = '#ff4444';
+      ctx.font = 'bold 14px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.shadowColor = '#000';
+      ctx.shadowBlur = 4;
+      ctx.fillText('!!', 0, -h / 2 - 4);
+      ctx.shadowBlur = 0;
+      ctx.restore();
+      return;
+    }
+
+    // Double-jump flip — one clean forward rotation
+    if (this.flipTimer > 0) {
+      ctx.save();
+      ctx.translate(x + w / 2, y + h / 2);
+      ctx.rotate(this.flipAngle);
+      Sprites.draw(ctx, spriteName, -w / 2, -h / 2, { frame: 3, scale: 2 });
+      ctx.restore();
+    } else {
+      Sprites.draw(ctx, spriteName, x, y, { frame, scale: 2 });
+    }
 
     // Shield glow (kept as a visual effect over the sprite)
     if (this.shield) {

@@ -255,9 +255,10 @@ function getManifest() {
 
 function renderListSelect() {
   const manifest = getManifest();
-  const listBtns = manifest.map(e =>
-    `<button class="menu-btn" data-list="${e.id}">${e.label}${e.subtitle ? ` (${e.subtitle})` : ''}</button>`
-  ).join('');
+  const listBtns = manifest.map(e => {
+    const langs = (e.lang1 && e.lang2) ? `<span style="font-size:11px;opacity:0.7;margin-left:8px">${e.lang1} ↔ ${e.lang2}</span>` : '';
+    return `<button class="menu-btn" data-list="${e.id}">${e.label}${langs}</button>`;
+  }).join('');
 
   showOverlay(`
     <div class="menu-panel">
@@ -299,6 +300,15 @@ function renderDirectionSelect() {
         <button class="menu-btn speed-btn${selectedSpeed==='slow'?' selected':''}" data-speed="slow"  style="flex:1;font-size:13px">🐢 SLOW</button>
         <button class="menu-btn speed-btn${selectedSpeed==='normal'?' selected':''}" data-speed="normal" style="flex:1;font-size:13px">🎯 NORMAL</button>
         <button class="menu-btn speed-btn${selectedSpeed==='fast'?' selected':''}" data-speed="fast"  style="flex:1;font-size:13px">⚡ FAST</button>
+      </div>
+      <div class="menu-section-title" style="margin-top:24px">Controls</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 16px;font-size:12px;color:#8ab08a;text-align:left;margin:0 8px 16px">
+        <span><kbd style="color:#c0e090">← → / A D</kbd> Move</span>
+        <span><kbd style="color:#c0e090">Z / Ctrl / Click</kbd> Shoot</span>
+        <span><kbd style="color:#c0e090">↑ / W / Space</kbd> Jump</span>
+        <span><kbd style="color:#c0e090">Right Shift</kbd> Knife (melee)</span>
+        <span><kbd style="color:#c0e090">double jump</kbd> in the air</span>
+        <span><kbd style="color:#c0e090">P / ESC</kbd> Pause</span>
       </div>
       <div class="menu-section-title">High Scores</div>
       ${_renderMiniLeaderboard(selectedList)}

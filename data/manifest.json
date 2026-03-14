@@ -1,0 +1,6 @@
+[
+  { "id": "holidays",  "label": "🏖 Holidays", "subtitle": "Vakantie", "lang1": "Dutch",  "lang2": "English" },
+  { "id": "police",    "label": "🚔 Police",   "subtitle": "Politie",  "lang1": "Dutch",  "lang2": "English" },
+  { "id": "school",    "label": "📚 School",   "subtitle": "School",   "lang1": "Dutch",  "lang2": "English" },
+  { "id": "FRNL_Sport","label": "⚽ Sport",    "subtitle": "Sport",    "lang1": "French", "lang2": "Dutch"   }
+]

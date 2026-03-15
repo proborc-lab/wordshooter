@@ -136,8 +136,8 @@ export function drawHUD(ctx, gameState) {
     ctx.fillText(`x${gameState.multiplier} COMBO ${gameState.combo}`, cw - 14, 52);
   }
 
-  // === Current word (centered top) ===
-  const prompt = gameState.prompt;
+  // === Current word (centered top) — hidden during boss fight ===
+  const prompt = gameState.bossMode ? '' : gameState.prompt;
   if (prompt) {
     // Arrow pointing direction
     const l1 = gameState.lang1 || 'A', l2 = gameState.lang2 || 'B';
@@ -159,41 +159,39 @@ export function drawHUD(ctx, gameState) {
     ctx.shadowBlur = 0;
   }
 
-  // === Timer bar ===
-  const timerBarX = cw / 2 - 120;
-  const timerBarY = 62;
-  const timerBarW = 240;
-  const timerBarH = 10;
+  // === Timer bar + progress (hidden during boss fight) ===
+  if (!gameState.bossMode) {
+    const timerBarX = cw / 2 - 120;
+    const timerBarY = 62;
+    const timerBarW = 240;
+    const timerBarH = 10;
 
-  // Background
-  ctx.fillStyle = '#1a2a1a';
-  ctx.fillRect(timerBarX, timerBarY, timerBarW, timerBarH);
+    ctx.fillStyle = '#1a2a1a';
+    ctx.fillRect(timerBarX, timerBarY, timerBarW, timerBarH);
 
-  // Timer fill
-  const timerRatio = Math.max(0, gameState.timer / gameState.timerMax);
-  const timerColor = timerRatio > 0.5 ? '#44aa44' :
-                     timerRatio > 0.25 ? '#aaaa00' : '#cc2222';
-  ctx.fillStyle = timerColor;
-  ctx.fillRect(timerBarX, timerBarY, timerBarW * timerRatio, timerBarH);
+    const timerRatio = Math.max(0, gameState.timer / gameState.timerMax);
+    const timerColor = timerRatio > 0.5 ? '#44aa44' :
+                       timerRatio > 0.25 ? '#aaaa00' : '#cc2222';
+    ctx.fillStyle = timerColor;
+    ctx.fillRect(timerBarX, timerBarY, timerBarW * timerRatio, timerBarH);
 
-  // Timer border
-  ctx.strokeStyle = '#2d4a2d';
-  ctx.lineWidth = 1;
-  ctx.strokeRect(timerBarX, timerBarY, timerBarW, timerBarH);
+    ctx.strokeStyle = '#2d4a2d';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(timerBarX, timerBarY, timerBarW, timerBarH);
 
-  // Timer label
-  ctx.fillStyle = '#6a8a6a';
-  ctx.font = '10px monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  ctx.fillText(`${Math.ceil(gameState.timer)}s`, cw / 2, timerBarY + timerBarH + 2);
+    ctx.fillStyle = '#6a8a6a';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(`${Math.ceil(gameState.timer)}s`, cw / 2, timerBarY + timerBarH + 2);
 
-  // === Progress indicator ===
-  ctx.fillStyle = '#4a6a4a';
-  ctx.font = '11px monospace';
-  ctx.textAlign = 'right';
-  ctx.textBaseline = 'top';
-  ctx.fillText(`${gameState.correctCount}/${gameState.totalWords}`, cw - 14, 72);
+    // Progress indicator
+    ctx.fillStyle = '#4a6a4a';
+    ctx.font = '11px monospace';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'top';
+    ctx.fillText(`${gameState.correctCount}/${gameState.totalWords}`, cw - 14, 72);
+  }
 
   // === Upgrade notification ===
   if (gameState.upgradeText && gameState.upgradeTimer > 0) {
@@ -245,30 +243,94 @@ export function drawHUD(ctx, gameState) {
   }
 }
 
+export function drawBossHUD(ctx, boss) {
+  const cw = ctx.canvas.width;
+  const now = Date.now();
+  const isP2 = boss.phase === 2;
+  const isVulnerable = !boss.immune;
+
+  // Dark top strip background
+  ctx.save();
+  ctx.globalAlpha = 0.82;
+  ctx.fillStyle = isP2 ? '#1a0000' : '#0d0020';
+  ctx.fillRect(0, 0, cw, 30);
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // Health bar
+  const barW = Math.floor(cw * 0.62);
+  const barH = 18;
+  const barX = Math.floor((cw - barW) / 2);
+  const barY = 5;
+
+  // Bar background
+  ctx.fillStyle = '#1a0000';
+  ctx.fillRect(barX, barY, barW, barH);
+
+  // Bar fill
+  const hRatio = Math.max(0, boss.health / boss.maxHealth);
+  let barFill;
+  if (isVulnerable) {
+    const p = 0.45 + Math.abs(Math.sin(now * 0.006)) * 0.4;
+    barFill = `hsl(120, 90%, ${Math.round(35 + p * 20)}%)`;
+  } else {
+    barFill = isP2 ? '#cc2200' : '#aa1133';
+  }
+  ctx.fillStyle = barFill;
+  ctx.fillRect(barX, barY, Math.round(barW * hRatio), barH);
+
+  // HP pip markers (every 3 HP)
+  ctx.strokeStyle = '#00000055';
+  ctx.lineWidth = 1;
+  for (let i = 3; i < boss.maxHealth; i += 3) {
+    const px = barX + Math.round(barW * (i / boss.maxHealth));
+    ctx.beginPath(); ctx.moveTo(px, barY); ctx.lineTo(px, barY + barH); ctx.stroke();
+  }
+
+  // Bar border + glow
+  ctx.save();
+  if (isVulnerable) {
+    ctx.shadowColor = '#00ff44';
+    ctx.shadowBlur = 12;
+  }
+  ctx.strokeStyle = isP2 ? '#ff3300' : '#880044';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(barX, barY, barW, barH);
+  ctx.restore();
+
+  // Label centred on bar
+  ctx.save();
+  ctx.font = `bold 11px monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = '#000';
+  ctx.shadowBlur = 4;
+  ctx.fillStyle = isP2 ? '#ff8844' : '#ffaacc';
+  const label = isP2 ? '\u26A1 SPELLING OVERLORD — ENRAGED \u26A1' : '\u26A1 SPELLING OVERLORD \u26A1';
+  ctx.fillText(label, cw / 2, barY + barH / 2);
+  ctx.restore();
+
+  // Vulnerability flash beneath bar
+  if (isVulnerable) {
+    ctx.save();
+    const pulse = 0.5 + Math.abs(Math.sin(now * 0.007)) * 0.5;
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = '#44ff44';
+    ctx.font = 'bold 13px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.shadowColor = '#00ff00';
+    ctx.shadowBlur = 8;
+    ctx.fillText(`\u25BA\u25BA SHOOT THE BOSS! ${Math.ceil(boss.vulnerableTimer)}s \u25C4\u25C4`, cw / 2, barY + barH + 3);
+    ctx.restore();
+  }
+}
+
 export function drawRedOverlay(ctx, intensity) {
   if (intensity <= 0) return;
   ctx.save();
   ctx.globalAlpha = Math.min(0.6, intensity * 0.6);
   ctx.fillStyle = '#cc0000';
   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-  ctx.restore();
-}
-
-export function drawPauseScreen(ctx) {
-  const cw = ctx.canvas.width;
-  const ch = ctx.canvas.height;
-  ctx.save();
-  ctx.globalAlpha = 0.6;
-  ctx.fillStyle = '#000000';
-  ctx.fillRect(0, 0, cw, ch);
-  ctx.globalAlpha = 1;
-  ctx.fillStyle = '#4a7a4a';
-  ctx.font = 'bold 48px monospace';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('PAUSED', cw / 2, ch / 2);
-  ctx.fillStyle = '#6a9a6a';
-  ctx.font = '18px monospace';
-  ctx.fillText('Press P or ESC to resume', cw / 2, ch / 2 + 50);
   ctx.restore();
 }

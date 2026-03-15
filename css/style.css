@@ -44,6 +44,8 @@ canvas {
   padding: 40px 60px;
   min-width: 400px;
   max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
   text-align: center;
 }
 

@@ -88,6 +88,61 @@ const FALLBACK = {
   ]
 };
 
+export function generateMisspellings(word, count = 3) {
+  const vowels = 'aeiou';
+  const results = [];
+
+  const mutations = [
+    // Remove a non-edge character
+    (w) => {
+      if (w.length < 4) return null;
+      const idx = 1 + Math.floor(Math.random() * (w.length - 2));
+      return w.slice(0, idx) + w.slice(idx + 1);
+    },
+    // Double a random character
+    (w) => {
+      const idx = Math.floor(Math.random() * w.length);
+      return w.slice(0, idx) + w[idx] + w.slice(idx);
+    },
+    // Swap a vowel with a different vowel
+    (w) => {
+      const vowelIdxs = [];
+      for (let i = 0; i < w.length; i++) {
+        if (vowels.includes(w[i].toLowerCase())) vowelIdxs.push(i);
+      }
+      if (vowelIdxs.length === 0) return null;
+      const idx = vowelIdxs[Math.floor(Math.random() * vowelIdxs.length)];
+      const otherVowels = vowels.split('').filter(v => v !== w[idx].toLowerCase());
+      const newVowel = otherVowels[Math.floor(Math.random() * otherVowels.length)];
+      return w.slice(0, idx) + newVowel + w.slice(idx + 1);
+    }
+  ];
+
+  let attempts = 0;
+  while (results.length < count && attempts < 120) {
+    attempts++;
+    let mutated;
+    if (word.length < 4) {
+      // Fallback: double a letter
+      const idx = Math.floor(Math.random() * word.length);
+      mutated = word.slice(0, idx) + word[idx] + word.slice(idx);
+    } else {
+      const mutation = mutations[Math.floor(Math.random() * mutations.length)];
+      mutated = mutation(word);
+    }
+    if (!mutated || mutated === word || results.includes(mutated)) continue;
+    results.push(mutated);
+  }
+
+  // Last-resort fill
+  while (results.length < count) {
+    const candidate = word + 'x'.repeat(results.length + 1);
+    results.push(candidate);
+  }
+
+  return results;
+}
+
 export async function loadWordLists() {
   // Load manifest to discover available word lists
   let manifest;

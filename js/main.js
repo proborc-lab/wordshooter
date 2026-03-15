@@ -50,6 +50,11 @@ let lastScore = 0;
 let lastVictory = false;
 const audio = new AudioManager();
 
+// Title-screen animation state (module-level so we can cancel/remove on re-entry)
+let _titleAnimId = null;
+let _titleKeyHandler = null;
+let _titleClickHandler = null;
+
 // Overlay element for HTML menus
 const overlay = document.getElementById('overlay');
 
@@ -80,13 +85,17 @@ function hideOverlay() {
 function renderTitle() {
   hideOverlay();
 
+  // Cancel any previous title animation loop and input listeners
+  if (_titleAnimId !== null) { cancelAnimationFrame(_titleAnimId); _titleAnimId = null; }
+  if (_titleKeyHandler)   { window.removeEventListener('keydown', _titleKeyHandler); _titleKeyHandler = null; }
+  if (_titleClickHandler) { canvas.removeEventListener('click', _titleClickHandler); _titleClickHandler = null; }
+
   // Draw title on canvas with animation
   let titleAnim = 0;
-  let titleAnimId = null;
 
   const drawTitle = (ts) => {
     if (currentScreen !== SCREENS.TITLE) {
-      cancelAnimationFrame(titleAnimId);
+      _titleAnimId = null;
       return;
     }
     titleAnim += 0.016;
@@ -162,18 +171,22 @@ function renderTitle() {
       ctx.stroke();
     });
 
-    titleAnimId = requestAnimationFrame(drawTitle);
+    _titleAnimId = requestAnimationFrame(drawTitle);
   };
-  titleAnimId = requestAnimationFrame(drawTitle);
+  _titleAnimId = requestAnimationFrame(drawTitle);
 
   // Transition on any key/click
   const onAny = () => {
     if (currentScreen !== SCREENS.TITLE) return;
     window.removeEventListener('keydown', onAny);
     canvas.removeEventListener('click', onAny);
+    _titleKeyHandler = null;
+    _titleClickHandler = null;
     audio.init();
     goToScreen(SCREENS.PLAYER_SELECT);
   };
+  _titleKeyHandler = onAny;
+  _titleClickHandler = onAny;
   window.addEventListener('keydown', onAny);
   canvas.addEventListener('click', onAny);
 }
@@ -377,20 +390,24 @@ function startGame() {
   }
 
   const wordList = wordLists[selectedList];
-
   const listMeta = getManifest().find(e => e.id === selectedList) || {};
-  currentGame = new Game(canvas, wordList, selectedDirection, selectedPlayer, audio, LB, selectedSpeed, listMeta.lang1 || 'A', listMeta.lang2 || 'B');
-  currentGame._listName = selectedList;
 
   // SM-11: capture reference so a stale callback from a previous game is ignored
-  const thisGame = currentGame;
-  currentGame._onGameOver = (score, won) => {
+  let thisGame;
+  const onGameOver = (score, won) => {
     if (currentGame !== thisGame) return;
     lastScore = score;
     lastVictory = won;
     currentGame = null;
     goToScreen(SCREENS.GAME_OVER);
   };
+
+  thisGame = currentGame = new Game(
+    canvas, wordList, selectedDirection, selectedPlayer,
+    audio, LB, selectedSpeed,
+    listMeta.lang1 || 'A', listMeta.lang2 || 'B',
+    selectedList, onGameOver
+  );
 
   currentGame.start();
 }

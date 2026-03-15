@@ -1,8 +1,8 @@
 import { Level } from './level.js';
 import { Player } from './player.js';
-import { WordBox, BonusBox, Monster, Projectile, Turret, Medkit, Mine } from './entities.js';
-import { shuffle } from './words.js';
-import { drawHUD, drawRedOverlay } from './ui.js';
+import { WordBox, BonusBox, Monster, BatMonster, SnakeMonster, Projectile, Turret, Medkit, Mine, Boss, SpellingBox } from './entities.js';
+import { shuffle, generateMisspellings } from './words.js';
+import { drawHUD, drawRedOverlay, drawBossHUD } from './ui.js';
 
 const UPGRADES = [
   { id: 'rapidFire', label: 'RAPID FIRE', desc: 'Faster shooting' },
@@ -13,7 +13,7 @@ const UPGRADES = [
 ];
 
 export class Game {
-  constructor(canvas, wordList, direction, playerName, audio, leaderboard, speed = 'normal', lang1 = 'A', lang2 = 'B') {
+  constructor(canvas, wordList, direction, playerName, audio, leaderboard, speed = 'normal', lang1 = 'A', lang2 = 'B', listName = 'unknown', onGameOver = null) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.direction = direction; // 'a-to-b' or 'b-to-a'
@@ -69,10 +69,14 @@ export class Game {
     this.medkits = [];
     this.mines = [];
     this.respawnPauseTimer = 0;
+    this.boss = null;
+    this.spellingBoxes = [];
     this.startDelay = 2;
     this.knifeTimer = 0;
     this.lastTime = null;
     this.animId = null;
+    this._listName = listName;
+    this._onGameOver = onGameOver;
 
     // Player sound hooks
     this.player._onJump = () => this.audio.playJump();
@@ -122,8 +126,7 @@ export class Game {
 
     const currentWord = this.getCurrentWord();
     if (!currentWord) {
-      // Game complete!
-      this._triggerVictory();
+      if (!this.boss) this._spawnBoss();
       return;
     }
 
@@ -238,9 +241,9 @@ export class Game {
     // Prevent timer from firing during the spawn delay
     this.timer = Infinity;
 
-    // Check if all words done
+    // Check if all words done — spawn boss instead of immediate victory
     if (this.currentWordIndex >= this.words.length && this.repeatQueue.length === 0) {
-      setTimeout(() => this._triggerVictory(), 500);
+      if (!this.boss) setTimeout(() => this._spawnBoss(), 500);
       return;
     }
 
@@ -257,12 +260,17 @@ export class Game {
     // RE-01: accumulate red tint per wrong answer
     this.redIntensity = Math.min(1, this.redIntensity + 0.2);
 
-    // Spawn monster from the wrong box
-    const monster = new Monster(
-      box.x + box.width / 2 - 20,
-      box.y - 60,
-      box
-    );
+    // Spawn a random monster type from the wrong box
+    const mx = box.x + box.width / 2 - 20;
+    const roll = Math.random();
+    let monster;
+    if (roll < 0.34) {
+      monster = new Monster(mx, box.y - 60, box);
+    } else if (roll < 0.67) {
+      monster = new BatMonster(mx, box.y - 40);
+    } else {
+      monster = new SnakeMonster(mx, box.y + box.height - 10);
+    }
     this.monsters.push(monster);
 
     // Add to repeat queue after 2 consecutive wrongs
@@ -280,9 +288,7 @@ export class Game {
   }
 
   _offerUpgrade() {
-    // Pick 1 upgrade randomly
-    const pool = [...UPGRADES];
-    const chosen = shuffle(pool)[0];
+    const chosen = UPGRADES[Math.floor(Math.random() * UPGRADES.length)];
 
     this.upgradeText = chosen.label;
     this.upgradeTimer = 3;
@@ -301,6 +307,59 @@ export class Game {
     } else if (chosen.id === 'doubleScore') {
       this.doubleScore = true;
       this.doubleScoreTimer = 20;
+    }
+  }
+
+  _spawnBoss() {
+    if (this.boss || this.gameOver || this.victory) return;
+    // Lock scroll for the entire boss fight
+    this.respawnPauseTimer = Infinity;
+    this.timer = Infinity;
+    // Clear normal gameplay entities
+    this.boxes = [];
+    this.monsters = [];
+    // Spawn boss arena platforms
+    this.level.spawnBossArena(this.cameraX);
+    // Position boss above center of arena
+    const bossX = this.cameraX + this.canvas.width * 0.55;
+    const bossY = this.canvas.height * 0.15;
+    this.boss = new Boss(bossX, bossY);
+    this.audio.playBossAppear();
+    // Start first round after spawn animation
+    setTimeout(() => this._startBossRound(), 1700);
+  }
+
+  _startBossRound() {
+    if (!this.boss || !this.boss.alive) return;
+    this.spellingBoxes = [];
+    this.boss.immune = true;
+    this.boss.vulnerableTimer = 0;
+    this.boss.roundCount++;
+    // Pick a random word from the full list
+    const word = this.words[Math.floor(Math.random() * this.words.length)];
+    this.boss.headWord = this.direction === 'a-to-b' ? word.a : word.b;
+    const answer = this.direction === 'a-to-b' ? word.b : word.a;
+    const misspellings = generateMisspellings(answer, 3);
+    const items = shuffle([
+      { word: answer, isCorrect: true },
+      ...misspellings.map(m => ({ word: m, isCorrect: false }))
+    ]);
+    this.spellingBoxes = items.map(it => new SpellingBox(0, 0, it.word, it.isCorrect));
+    // Place directly on boss-arena platforms (sorted left to right)
+    const arenaPlats = this.level.getAllPlatforms()
+      .filter(p => p.isBossArena)
+      .sort((a, b) => a.x - b.x);
+    for (let i = 0; i < this.spellingBoxes.length && i < arenaPlats.length; i++) {
+      const p = arenaPlats[i];
+      const box = this.spellingBoxes[i];
+      box.x = p.x + (p.width - box.width) / 2;
+      box.y = p.y - box.height - 5;
+    }
+
+    // Spawn 2 medkits on the arena floor to give the player a fighting chance
+    const mkPlats = arenaPlats.slice(0, 2);
+    for (const p of mkPlats) {
+      this.medkits.push(new Medkit(p.x + p.width / 2 - 9, p.y - 36));
     }
   }
 
@@ -323,6 +382,10 @@ export class Game {
   }
 
   _triggerVictory() {
+    if (this.victory) return;
+    this.boss = null;
+    this.spellingBoxes = [];
+    this.respawnPauseTimer = 0;
     this.victory = true;
     this.running = false;
     this.audio.playVictory();
@@ -426,6 +489,43 @@ export class Game {
         } else {
           box.hit(false);
           this.onWrongHit(box);
+        }
+        return;
+      }
+    }
+
+    // SpellingBoxes (boss fight)
+    for (const sb of this.spellingBoxes) {
+      if (!sb.alive || sb.state !== 'normal') continue;
+      if (inReach(sb.x + sb.width / 2, sb.y + sb.height / 2)) {
+        if (sb.isCorrect) {
+          sb.hit(true);
+          this.boss.immune = false;
+          this.boss.vulnerableTimer = 10;
+          for (const other of this.spellingBoxes) {
+            if (!other.isCorrect && other.alive) { other.state = 'destroyed'; other.alive = false; }
+          }
+          this.audio.playCorrect();
+          this.audio.playBossVulnerable();
+        } else {
+          sb.hit(false);
+          this.audio.playWrong();
+          if (this.player.takeDamage()) {
+            this.audio.playPlayerHit();
+            this.redIntensity = 0.8;
+            if (this.player.health <= 0) { this._triggerGameOver(); return; }
+          }
+        }
+        return;
+      }
+    }
+
+    // Boss body (only when vulnerable)
+    if (this.boss && !this.boss.immune && this.boss.alive) {
+      if (inReach(this.boss.x + this.boss.width / 2, this.boss.y + this.boss.height / 2)) {
+        if (this.boss.takeDamage()) {
+          this.spellingBoxes = [];
+          this.audio.playBossDeath();
         }
         return;
       }
@@ -571,7 +671,7 @@ export class Game {
       }
       // Place player on a real platform and freeze scroll for 2s
       this._respawnPlayer();
-      this.respawnPauseTimer = 2;
+      if (!this.boss) this.respawnPauseTimer = 2;
     }
 
     // Update level
@@ -674,6 +774,36 @@ export class Game {
     }
     this.projectiles.push(...newProjectiles);
 
+    // Boss update
+    if (this.boss) {
+      const playerCX = this.player.x + this.player.width / 2;
+      const playerCY = this.player.y + this.player.height / 2;
+      const bossResult = this.boss.update(dt, playerCX, playerCY);
+      if (bossResult) {
+        if (Array.isArray(bossResult)) {
+          this.projectiles.push(...bossResult);
+          this.audio.playMonsterFire();
+        } else {
+          this.projectiles.push(bossResult);
+          this.audio.playMonsterFire();
+        }
+      }
+      // Update spelling boxes
+      for (const sb of this.spellingBoxes) sb.update(dt);
+
+      // Death animation complete → trigger victory
+      if (this.boss.dying && this.boss.deathTimer > 7) {
+        this._triggerVictory();
+        return;
+      }
+
+      // Vulnerability timeout → start new round (not if already dying)
+      if (!this.boss.dying && !this.boss.immune && this.boss.vulnerableTimer <= 0) {
+        this.boss.immune = true;
+        this._startBossRound();
+      }
+    }
+
     // Red overlay fade
     if (this.redIntensity > 0) {
       this.redIntensity = Math.max(0, this.redIntensity - dt * 1.5);
@@ -707,16 +837,16 @@ export class Game {
 
     // === Collision detection ===
 
-    // Player projectile vs WordBox
+    // Player projectiles vs world (single pass: boxes → monsters → turrets)
     for (const proj of this.projectiles) {
       if (!proj.fromPlayer || !proj.alive) continue;
+
+      // vs WordBox / BonusBox
       for (const box of this.boxes) {
         if (!box.alive || box.state !== 'normal') continue;
         if (box.checkCollision(proj)) {
           proj.alive = false;
-
           if (box instanceof BonusBox) {
-            // Collect bonus
             box.hit(true);
             this._applyBonusReward(box.reward);
           } else if (box.isCorrect) {
@@ -729,31 +859,24 @@ export class Game {
           break;
         }
       }
-    }
+      if (!proj.alive) continue;
 
-    // Player projectile vs Monster
-    for (const proj of this.projectiles) {
-      if (!proj.fromPlayer || !proj.alive) continue;
+      // vs Monster
       for (const monster of this.monsters) {
         if (!monster.alive) continue;
-        if (
-          proj.x < monster.x + monster.width &&
-          proj.x + proj.width > monster.x &&
-          proj.y < monster.y + monster.height &&
-          proj.y + proj.height > monster.y
-        ) {
+        if (proj.x < monster.x + monster.width &&
+            proj.x + proj.width > monster.x &&
+            proj.y < monster.y + monster.height &&
+            proj.y + proj.height > monster.y) {
           proj.alive = false;
           monster.takeDamage();
-          if (!monster.alive) {
-            this.score += 50;
-          }
+          if (!monster.alive) this.score += 50;
+          break;
         }
       }
-    }
+      if (!proj.alive) continue;
 
-    // Player projectile vs Turret
-    for (const proj of this.projectiles) {
-      if (!proj.fromPlayer || !proj.alive) continue;
+      // vs Turret
       for (const t of this.turrets) {
         if (!t.alive) continue;
         if (proj.x < t.x + t.width && proj.x + proj.width > t.x &&
@@ -761,6 +884,59 @@ export class Game {
           proj.alive = false;
           if (t.takeDamage()) this.score += 75;
           break;
+        }
+      }
+    }
+
+    // Player projectiles vs SpellingBoxes and Boss
+    if (this.boss) {
+      for (const proj of this.projectiles) {
+        if (!proj.fromPlayer || !proj.alive) continue;
+
+        // vs SpellingBox
+        for (const sb of this.spellingBoxes) {
+          if (!sb.alive || sb.state !== 'normal') continue;
+          if (sb.checkCollision(proj)) {
+            proj.alive = false;
+            if (sb.isCorrect) {
+              sb.hit(true);
+              this.boss.immune = false;
+              this.boss.vulnerableTimer = 10;
+              // Destroy remaining wrong boxes
+              for (const other of this.spellingBoxes) {
+                if (!other.isCorrect && other.alive) {
+                  other.state = 'destroyed';
+                  other.alive = false;
+                }
+              }
+              this.audio.playCorrect();
+              this.audio.playBossVulnerable();
+            } else {
+              sb.hit(false);
+              this.audio.playWrong();
+              if (this.player.takeDamage()) {
+                this.audio.playPlayerHit();
+                this.redIntensity = 0.8;
+                if (this.player.health <= 0) { this._triggerGameOver(); return; }
+              }
+            }
+            break;
+          }
+        }
+        if (!proj.alive) continue;
+
+        // vs Boss body (only when vulnerable)
+        if (!this.boss.immune && this.boss.alive) {
+          if (proj.x < this.boss.x + this.boss.width &&
+              proj.x + proj.width > this.boss.x &&
+              proj.y < this.boss.y + this.boss.height &&
+              proj.y + proj.height > this.boss.y) {
+            proj.alive = false;
+            if (this.boss.takeDamage()) {
+              this.spellingBoxes = [];
+              this.audio.playBossDeath();
+            }
+          }
         }
       }
     }
@@ -790,15 +966,27 @@ export class Game {
       }
     }
 
-    // Monster / turret projectile vs Player
+    // Player vs SnakeMonster (contact damage — snake is destroyed on impact)
+    for (const m of this.monsters) {
+      if (!m.alive || !(m instanceof SnakeMonster)) continue;
+      if (this.player.x < m.x + m.width  && this.player.x + this.player.width  > m.x &&
+          this.player.y < m.y + m.height && this.player.y + this.player.height > m.y) {
+        m.alive = false;
+        if (this.player.takeDamage()) {
+          this.audio.playPlayerHit();
+          this.redIntensity = 0.8;
+          if (this.player.health <= 0) { this._triggerGameOver(); return; }
+        }
+      }
+    }
+
+    // Enemy projectiles vs Player
     for (const proj of this.projectiles) {
       if (proj.fromPlayer || !proj.alive) continue;
-      if (
-        proj.x < this.player.x + this.player.width &&
-        proj.x + proj.width > this.player.x &&
-        proj.y < this.player.y + this.player.height &&
-        proj.y + proj.height > this.player.y
-      ) {
+      if (proj.x < this.player.x + this.player.width &&
+          proj.x + proj.width > this.player.x &&
+          proj.y < this.player.y + this.player.height &&
+          proj.y + proj.height > this.player.y) {
         proj.alive = false;
         if (this.player.takeDamage()) {
           this.audio.playPlayerHit();
@@ -823,6 +1011,7 @@ export class Game {
     this.turrets = this.turrets.filter(t => t.alive);
     this.medkits = this.medkits.filter(mk => mk.alive);
     this.mines = this.mines.filter(mine => mine.alive);
+    this.spellingBoxes = this.spellingBoxes.filter(b => b.alive || b.particles.length > 0);
   }
 
   _applyBonusReward(reward) {
@@ -862,6 +1051,16 @@ export class Game {
     // Draw boxes
     for (const box of this.boxes) {
       box.draw(ctx, this.cameraX);
+    }
+
+    // Draw spelling boxes (boss fight)
+    for (const sb of this.spellingBoxes) {
+      sb.draw(ctx, this.cameraX);
+    }
+
+    // Draw boss (behind player)
+    if (this.boss) {
+      this.boss.draw(ctx, this.cameraX);
     }
 
     // Draw monsters
@@ -915,8 +1114,8 @@ export class Game {
       ctx.restore();
     }
 
-    // Respawn pause indicator
-    if (this.respawnPauseTimer > 0) {
+    // Respawn pause indicator (not during boss fight)
+    if (this.respawnPauseTimer > 0 && !this.boss) {
       ctx.save();
       ctx.globalAlpha = Math.min(1, this.respawnPauseTimer * 1.5);
       ctx.fillStyle = '#ffdd44';
@@ -937,6 +1136,35 @@ export class Game {
     // Red overlay for damage
     drawRedOverlay(ctx, this.redIntensity);
 
+    // Epic VICTORY message during boss death animation (seconds 5–7)
+    if (this.boss && this.boss.dying && this.boss.deathTimer > 5) {
+      const vt = this.boss.deathTimer - 5;           // 0 → 2
+      const alpha = Math.min(1, vt / 0.35);
+      const pulse = 1 + Math.sin(vt * 6) * 0.03;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      // Dark vignette behind text
+      ctx.fillStyle = 'rgba(0, 10, 0, 0.55)';
+      ctx.fillRect(0, 0, cw, ch);
+      ctx.translate(cw / 2, ch / 2);
+      ctx.scale(pulse, pulse);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      // Outer glow
+      ctx.shadowColor = '#ffaa00';
+      ctx.shadowBlur = 60;
+      ctx.fillStyle = '#ffdd00';
+      ctx.font = 'bold 108px monospace';
+      ctx.fillText('VICTORY!', 0, -28);
+      // Sub-line
+      ctx.shadowColor = '#00ff44';
+      ctx.shadowBlur = 20;
+      ctx.fillStyle = '#aaffcc';
+      ctx.font = 'bold 22px monospace';
+      ctx.fillText('The Spelling Overlord has been defeated!', 0, 52);
+      ctx.restore();
+    }
+
     // HUD
     const hudState = {
       health: this.player.health,
@@ -946,7 +1174,7 @@ export class Game {
       multiplier: this.multiplier,
       timer: this.timer,
       timerMax: this.timerMax,
-      prompt: this.getPrompt(),
+      prompt: this.boss ? '' : this.getPrompt(),
       direction: this.direction,
       correctCount: this.correctCount,
       totalWords: this.totalWords,
@@ -958,9 +1186,13 @@ export class Game {
       rapidFire: this.player.rapidFire,
       speedBoost: this.player.speedBoost,
       lang1: this.lang1,
-      lang2: this.lang2
+      lang2: this.lang2,
+      bossMode: !!this.boss
     };
     drawHUD(ctx, hudState);
+    if (this.boss) {
+      drawBossHUD(ctx, this.boss);
+    }
 
     // Paused overlay
     if (this.paused) {

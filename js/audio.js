@@ -155,6 +155,59 @@ export class AudioManager {
     });
   }
 
+  playBossAppear() {
+    if (!this.ctx || !this.enabled) return;
+    this._resume();
+    const t = this.ctx.currentTime;
+    // Deep rumble descending
+    this._tone(110, 'sawtooth', 0.6, 0.25, t);
+    this._tone(90,  'sawtooth', 0.6, 0.2,  t + 0.15);
+    this._tone(70,  'sawtooth', 0.8, 0.25, t + 0.35);
+    this._noise(0.5, 0.2, t);
+    this._noise(0.4, 0.15, t + 0.4);
+    // Ominous low chord
+    this._tone(55,  'square', 1.0, 0.12, t + 0.6);
+    this._tone(82,  'square', 1.0, 0.08, t + 0.6);
+    this._tone(110, 'square', 1.0, 0.06, t + 0.6);
+  }
+
+  playBossVulnerable() {
+    if (!this.ctx || !this.enabled) return;
+    this._resume();
+    const t = this.ctx.currentTime;
+    // Bright ascending fanfare — "now's your chance!"
+    const melody = [523, 659, 784, 1047, 1175];
+    const offsets = [0, 0.07, 0.14, 0.21, 0.30];
+    melody.forEach((freq, i) => {
+      this._tone(freq, 'sine',     0.14, 0.28, t + offsets[i]);
+      this._tone(freq, 'triangle', 0.08, 0.12, t + offsets[i] + 0.02);
+    });
+    this._noise(0.06, 0.1, t);
+  }
+
+  playBossDeath() {
+    if (!this.ctx || !this.enabled) return;
+    this._resume();
+    const t = this.ctx.currentTime;
+    // Multi-stage explosion
+    this._noise(0.3, 0.4, t);
+    this._noise(0.5, 0.3, t + 0.1);
+    this._noise(0.6, 0.25, t + 0.3);
+    this._tone(80,  'sawtooth', 0.4, 0.3, t);
+    this._tone(60,  'sawtooth', 0.5, 0.3, t + 0.2);
+    this._tone(45,  'sawtooth', 0.6, 0.3, t + 0.4);
+    // Dramatic descending sweep
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.connect(gain); gain.connect(this.ctx.destination);
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(400, t + 0.7);
+    osc.frequency.exponentialRampToValueAtTime(50, t + 1.8);
+    gain.gain.setValueAtTime(0.3, t + 0.7);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 2.0);
+    osc.start(t + 0.7); osc.stop(t + 2.1);
+  }
+
   playVictory() {
     if (!this.ctx || !this.enabled) return;
     this._resume();

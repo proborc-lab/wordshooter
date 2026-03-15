@@ -26,12 +26,22 @@ export class Level {
     const elements = [];
     // Background buildings/ruins
     for (let i = 0; i < 30; i++) {
+      const w = 40 + Math.random() * 80;
+      const h = 60 + Math.random() * 200;
+      // Pre-compute lit window offsets (relative to building top-left) to avoid
+      // calling Math.random() every frame, which caused windows to flicker.
+      const windows = [];
+      for (let dy = 10; dy < h - 10; dy += 18) {
+        for (let dx = 5; dx < w - 8; dx += 14) {
+          if (Math.random() >= 0.01) windows.push({ dx, dy }); // ~99% lit
+        }
+      }
       elements.push({
         x: Math.random() * 8000,
         y: 0,
-        w: 40 + Math.random() * 80,
-        h: 60 + Math.random() * 200,
-        color: `rgb(${15 + Math.floor(Math.random() * 20)},${20 + Math.floor(Math.random() * 20)},${15 + Math.floor(Math.random() * 15)})`
+        w, h,
+        color: `rgb(${15 + Math.floor(Math.random() * 20)},${20 + Math.floor(Math.random() * 20)},${15 + Math.floor(Math.random() * 15)})`,
+        windows
       });
     }
     return elements;
@@ -166,27 +176,30 @@ export class Level {
     const ch = this.canvas.height;
     const cw = this.canvas.width;
 
-    // Sky gradient
-    const grad = ctx.createLinearGradient(0, 0, 0, ch);
-    grad.addColorStop(0, '#050a05');
-    grad.addColorStop(0.6, '#0a150a');
-    grad.addColorStop(1, '#0f1a0f');
-    ctx.fillStyle = grad;
+    // Sky gradient (cached; invalidated when canvas height changes)
+    if (!this._skyGrad || this._skyGradH !== ch) {
+      const grad = ctx.createLinearGradient(0, 0, 0, ch);
+      grad.addColorStop(0, '#050a05');
+      grad.addColorStop(0.6, '#0a150a');
+      grad.addColorStop(1, '#0f1a0f');
+      this._skyGrad = grad;
+      this._skyGradH = ch;
+    }
+    ctx.fillStyle = this._skyGrad;
     ctx.fillRect(0, 0, cw, ch);
 
     // Background buildings (parallax 0.3)
+    ctx.fillStyle = 'rgba(60, 90, 60, 0.4)'; // shared window colour
     for (const b of this.bgStars) {
       const bx = b.x - cameraX * 0.3;
       const screenX = ((bx % (cw + 200)) + cw + 200) % (cw + 200) - 100;
       ctx.fillStyle = b.color;
       ctx.fillRect(screenX, ch - b.h, b.w, b.h);
-      // Windows
+      // Pre-computed lit windows (offsets relative to building top-left)
       ctx.fillStyle = 'rgba(60, 90, 60, 0.4)';
-      for (let wy = ch - b.h + 10; wy < ch - 10; wy += 18) {
-        for (let wx = screenX + 5; wx < screenX + b.w - 8; wx += 14) {
-          if (Math.random() < 0.01) continue; // occasionally unlit
-          ctx.fillRect(wx, wy, 6, 8);
-        }
+      const buildingTop = ch - b.h;
+      for (const { dx, dy } of b.windows) {
+        ctx.fillRect(screenX + dx, buildingTop + dy, 6, 8);
       }
     }
 
@@ -273,6 +286,44 @@ export class Level {
     // Ground/abyss
     ctx.fillStyle = '#050f05';
     ctx.fillRect(0, this.groundY + 60, cw, ch - this.groundY - 60);
+  }
+
+  spawnBossArena(cameraX) {
+    const startX = cameraX + this.canvas.width * 0.25;
+    const tileColors   = ['#2d4a2d', '#325233', '#3a5a3a', '#426242', '#4a6a4a'];
+    const accentColors = ['#1a3a1a', '#1f3f1f', '#253a25', '#2a4a2a', '#304a30'];
+
+    // 4 spelling-box platforms — tagged isBossArena so _startBossRound places boxes on them
+    const spellingLayout = [
+      { dx: 20,  tier: 1, width: 155 },
+      { dx: 240, tier: 1, width: 145 },
+      { dx: 480, tier: 1, width: 155 },
+      { dx: 700, tier: 1, width: 145 },
+    ];
+    for (const ap of spellingLayout) {
+      this.platforms.push({
+        x: startX + ap.dx, y: this.tiers[ap.tier], width: ap.width, height: 20,
+        tileColor: tileColors[ap.tier], accentColor: accentColors[ap.tier], tier: ap.tier,
+        isBossArena: true, decorated: true
+      });
+    }
+
+    // High flanking platforms so the player can reach shooting height (tier 4 hits the boss)
+    // Boss floats near canvas.height * 0.15; tier 4 (canvas.height - 470) puts player at boss height
+    const navLayout = [
+      { dx: 100, tier: 4, width: 135 },  // left of boss
+      { dx: 175, tier: 3, width: 110 },  // stepping stone up-left
+      { dx: 360, tier: 4, width: 135 },  // right of boss
+      { dx: 555, tier: 3, width: 110 },  // stepping stone up-right
+      { dx: 610, tier: 4, width: 125 },  // far right high
+    ];
+    for (const np of navLayout) {
+      this.platforms.push({
+        x: startX + np.dx, y: this.tiers[np.tier], width: np.width, height: 20,
+        tileColor: tileColors[np.tier], accentColor: accentColors[np.tier], tier: np.tier,
+        decorated: true
+      });
+    }
   }
 
   placeWordBoxes(boxes, startX) {

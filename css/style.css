@@ -267,6 +267,16 @@ canvas {
   padding: 8px 20px;
 }
 
+.list-group-header {
+  font-size: 11px;
+  color: #6a9a6a;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin: 16px 0 6px;
+  padding: 0 4px;
+  border-bottom: 1px solid #2d4a2d;
+}
+
 /* ---- Modifier banner (shown between game over and next round start) ---- */
 #banner-skip {
   animation: pulse-green 0.9s ease-in-out infinite alternate;

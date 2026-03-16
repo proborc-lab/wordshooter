@@ -1,9 +1,29 @@
-[
-  { "id": "holidays",  "label": "🏖 Holidays", "subtitle": "Vakantie", "lang1": "Dutch",  "lang2": "English" },
-  { "id": "police",    "label": "🚔 Police",   "subtitle": "Politie",  "lang1": "Dutch",  "lang2": "English" },
-  { "id": "school",    "label": "📚 School",   "subtitle": "School",   "lang1": "Dutch",  "lang2": "English" },
-  { "id": "FRNL_Sport","label": "⚽ Sport",    "subtitle": "Sport",    "lang1": "French", "lang2": "Dutch"   },
-  { "id": "NLFR_131E", "label": "📝 Huiswerk E131", "subtitle": "E 131",    "lang1": "Dutch", "lang2": "French"   },
-  { "id": "newyork",   "label": "🗽 New York",  "subtitle": "New York",    "lang1": "Dutch",  "lang2": "English" },
-  { "id": "newyork2",  "label": "🎉 New York - Festivities", "subtitle": "Feestdagen", "lang1": "Dutch",  "lang2": "English" }
-]
+{
+  "NL-EN": {
+    "lang1": "Dutch",
+    "lang2": "English",
+    "categories": {
+      "Theme": [
+        { "id": "holidays",  "label": "🏖 Holidays",                "subtitle": "Vakantie"    },
+        { "id": "police",    "label": "🚔 Police",                   "subtitle": "Politie"     },
+        { "id": "school",    "label": "📚 School",                   "subtitle": "School"      },
+        { "id": "newyork",   "label": "🗽 New York",                 "subtitle": "New York"    },
+        { "id": "newyork2",  "label": "🎉 New York — Festivities",   "subtitle": "Feestdagen"  }
+      ]
+    }
+  },
+  "NL-FR": {
+    "lang1": "Dutch",
+    "lang2": "French",
+    "categories": {
+      "Theme": [
+        { "id": "FRNL_Sport", "label": "⚽ Sport", "subtitle": "Sport" }
+      ],
+      "Homework": {
+        "Méthode 131E": [
+          { "id": "NLFR_131E", "label": "📝 E131 — Week 1", "subtitle": "E 131" }
+        ]
+      }
+    }
+  }
+}

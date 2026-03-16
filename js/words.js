@@ -143,8 +143,54 @@ export function generateMisspellings(word, count = 3) {
   return results;
 }
 
+// Flatten hierarchical manifest { "NL-EN": { lang1, lang2, categories: { Cat: [...] } } }
+// into a plain array of entries, each with lang1/lang2/langPair/category/group fields.
+// Also accepts the old flat-array format for backward compatibility.
+export function flattenManifest(manifest) {
+  if (Array.isArray(manifest)) {
+    // Old flat format — normalise missing fields
+    return manifest.map(e => ({
+      ...e,
+      langPair: e.langPair || `${e.lang1 || ''}-${e.lang2 || ''}`,
+      category: e.category || 'Theme',
+    }));
+  }
+  const entries = [];
+  for (const [pairKey, pairData] of Object.entries(manifest)) {
+    const { lang1, lang2, categories = {} } = pairData;
+    for (const [catName, catData] of Object.entries(categories)) {
+      if (Array.isArray(catData)) {
+        for (const e of catData) {
+          entries.push({ ...e, lang1, lang2, langPair: pairKey, category: catName });
+        }
+      } else {
+        // Object: group name → array of entries
+        for (const [groupName, groupList] of Object.entries(catData)) {
+          for (const e of groupList) {
+            entries.push({ ...e, lang1, lang2, langPair: pairKey, category: catName, group: groupName });
+          }
+        }
+      }
+    }
+  }
+  return entries;
+}
+
+// Fetch and parse a single word list on demand (lazy loading).
+export async function fetchWordList(entry) {
+  const file = entry.file || `data/${entry.id}.csv`;
+  try {
+    const res = await fetch(file);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return parseCSV(await res.text());
+  } catch (e) {
+    console.warn(`Failed to load word list "${entry.id}":`, e);
+    return FALLBACK[entry.id] || [];
+  }
+}
+
+// Boot-time load: fetch manifest only — individual CSVs are loaded lazily.
 export async function loadWordLists() {
-  // Load manifest to discover available word lists
   let manifest;
   try {
     const res = await fetch('data/manifest.json');
@@ -153,23 +199,10 @@ export async function loadWordLists() {
   } catch (e) {
     console.warn('Could not load manifest.json, using built-in lists:', e);
     manifest = [
-      { id: 'holidays', label: '🏖 Holidays', subtitle: 'Vakantie' },
-      { id: 'police',   label: '🚔 Police',   subtitle: 'Politie'  },
-      { id: 'school',   label: '📚 School',   subtitle: 'School'   }
+      { id: 'holidays', label: '🏖 Holidays', subtitle: 'Vakantie', lang1: 'Dutch',  lang2: 'English' },
+      { id: 'police',   label: '🚔 Police',   subtitle: 'Politie',  lang1: 'Dutch',  lang2: 'English' },
+      { id: 'school',   label: '📚 School',   subtitle: 'School',   lang1: 'Dutch',  lang2: 'English' },
     ];
   }
-
-  const lists = { _manifest: manifest };
-  for (const entry of manifest) {
-    try {
-      const resp = await fetch(`data/${entry.id}.csv`);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const text = await resp.text();
-      lists[entry.id] = parseCSV(text);
-    } catch (e) {
-      console.warn(`Failed to load ${entry.id}.csv, using fallback:`, e);
-      lists[entry.id] = FALLBACK[entry.id] || [];
-    }
-  }
-  return lists;
+  return { _manifest: manifest, _flat: flattenManifest(manifest) };
 }

@@ -1,4 +1,4 @@
-import { loadWordLists } from './words.js';
+import { loadWordLists, fetchWordList } from './words.js';
 import { AudioManager } from './audio.js';
 import { Game } from './game.js';
 import * as LB from './leaderboard.js';
@@ -45,6 +45,10 @@ let selectedPlayer = '';
 let selectedList = '';
 let selectedDirection = '';
 let selectedSpeed = 'normal';
+// List-select navigation state (persists across back-navigation)
+let _lsLangPair = '';
+let _lsCategory = '';
+let _lsSearch = '';
 let currentGame = null;
 let lastScore = 0;
 let lastVictory = false;
@@ -279,44 +283,216 @@ function selectPlayer(name) {
 
 // ---- LIST SELECT ----
 function getManifest() {
-  // Prefer the manifest loaded from manifest.json
-  if (wordLists && wordLists._manifest && wordLists._manifest.length > 0) {
-    return wordLists._manifest;
-  }
-  // Fallback: derive from the keys that loadWordLists actually populated
-  return Object.keys(wordLists || {})
-    .filter(k => k !== '_manifest' && Array.isArray(wordLists[k]))
-    .map(k => ({ id: k, label: k.charAt(0).toUpperCase() + k.slice(1) }));
+  return (wordLists && wordLists._flat) ? wordLists._flat : [];
 }
 
-function renderListSelect() {
-  const manifest = getManifest();
-  const listBtns = manifest.map(e => {
-    const langs = (e.lang1 && e.lang2) ? `<span style="font-size:11px;opacity:0.7;margin-left:8px">${e.lang1} ↔ ${e.lang2}</span>` : '';
-    return `<button class="menu-btn" data-list="${e.id}">${e.label}${langs}</button>`;
-  }).join('');
+// Category icon lookup
+function _catIcon(cat) {
+  const icons = { Theme: '🎨', Homework: '📚', 'Exam prep': '📝', CEFR: '🏆', Community: '👥' };
+  return icons[cat] || '📂';
+}
 
-  showOverlay(`
-    <div class="menu-panel">
-      <div class="menu-section-title">Soldier: ${selectedPlayer}</div>
-      <div class="menu-title" style="font-size:32px;margin-bottom:6px">CHOOSE MISSION</div>
-      <div class="menu-subtitle">Select vocabulary list</div>
-      ${listBtns}
-      <button class="menu-btn back-btn" id="backBtn" style="font-size:13px">← BACK</button>
-    </div>
-  `);
+// Bind global search box (re-renders on input; used in lang-pair & category steps)
+function _bindGlobalSearch() {
+  const input = document.getElementById('listSearch');
+  if (!input) return;
+  input.value = _lsSearch;
+  input.addEventListener('input', e => {
+    _lsSearch = e.target.value;
+    renderListSelect();
+    // Restore focus after DOM rebuild
+    const fresh = document.getElementById('listSearch');
+    if (fresh) { fresh.focus(); fresh.setSelectionRange(fresh.value.length, fresh.value.length); }
+  });
+}
 
-  overlay.querySelector('.menu-panel').addEventListener('click', (e) => {
+// Bind list-pick click on any [data-list] button
+function _bindListPick() {
+  overlay.querySelector('.menu-panel').addEventListener('click', e => {
     const btn = e.target.closest('[data-list]');
     if (btn) {
       selectedList = btn.dataset.list;
+      _lsSearch = '';
       goToScreen(SCREENS.DIRECTION_SELECT);
     }
   });
+}
 
-  document.getElementById('backBtn').addEventListener('click', () => {
-    goToScreen(SCREENS.PLAYER_SELECT);
+function renderListSelect() {
+  const flat    = getManifest();
+  const hier    = (wordLists && wordLists._manifest) || {};
+
+  // ── Global search (≥2 chars) ────────────────────────────────────────────
+  if (_lsSearch.length >= 2) {
+    const q = _lsSearch.toLowerCase();
+    const results = flat.filter(e =>
+      e.label.toLowerCase().includes(q) ||
+      (e.subtitle || '').toLowerCase().includes(q) ||
+      (e.group || '').toLowerCase().includes(q) ||
+      (e.category || '').toLowerCase().includes(q) ||
+      (e.langPair || '').toLowerCase().includes(q)
+    );
+    const resultBtns = results.length
+      ? results.map(e => `
+          <button class="menu-btn" data-list="${e.id}">
+            ${e.label}
+            <span style="font-size:11px;opacity:0.6;margin-left:8px">${e.langPair || ''} · ${e.category || ''}</span>
+          </button>`).join('')
+      : '<div style="color:#4a6a4a;font-size:13px;padding:16px 0">No results found</div>';
+
+    showOverlay(`
+      <div class="menu-panel">
+        <div class="menu-section-title">Soldier: ${selectedPlayer}</div>
+        <div class="menu-title" style="font-size:32px;margin-bottom:6px">CHOOSE MISSION</div>
+        <input class="menu-input" id="listSearch" type="search" placeholder="Search all lists…" autocomplete="off" />
+        <div style="color:#6a9a6a;font-size:12px;margin:4px 0 12px;letter-spacing:1px">${results.length} result${results.length !== 1 ? 's' : ''}</div>
+        <div style="max-height:52vh;overflow-y:auto">${resultBtns}</div>
+        <button class="menu-btn back-btn" id="backBtn" style="font-size:13px">✕ Clear search</button>
+      </div>
+    `);
+    _bindGlobalSearch();
+    _bindListPick();
+    document.getElementById('backBtn').addEventListener('click', () => { _lsSearch = ''; renderListSelect(); });
+    return;
+  }
+
+  // ── Step 1: Language pair ────────────────────────────────────────────────
+  if (!_lsLangPair) {
+    // Build pair buttons from hierarchical manifest (or flat fallback)
+    const pairCounts = {};
+    for (const e of flat) {
+      pairCounts[e.langPair] = (pairCounts[e.langPair] || 0) + 1;
+    }
+    // Collect pair meta (lang1/lang2) from hierarchical manifest or flat entries
+    const pairMeta = {};
+    if (!Array.isArray(hier)) {
+      for (const [key, p] of Object.entries(hier)) {
+        pairMeta[key] = { lang1: p.lang1, lang2: p.lang2 };
+      }
+    } else {
+      for (const e of flat) {
+        if (!pairMeta[e.langPair]) pairMeta[e.langPair] = { lang1: e.lang1, lang2: e.lang2 };
+      }
+    }
+
+    const pairBtns = Object.entries(pairCounts).map(([key, count]) => {
+      const m = pairMeta[key] || {};
+      return `<button class="menu-btn" data-langpair="${key}">
+        ${m.lang1 || key} ↔ ${m.lang2 || ''}
+        <span style="font-size:11px;opacity:0.6;margin-left:8px">${count} list${count !== 1 ? 's' : ''}</span>
+      </button>`;
+    }).join('');
+
+    showOverlay(`
+      <div class="menu-panel">
+        <div class="menu-section-title">Soldier: ${selectedPlayer}</div>
+        <div class="menu-title" style="font-size:32px;margin-bottom:6px">CHOOSE MISSION</div>
+        <input class="menu-input" id="listSearch" type="search" placeholder="Search all lists…" autocomplete="off" />
+        <div class="menu-section-title">Language pair</div>
+        ${pairBtns}
+        <button class="menu-btn back-btn" id="backBtn" style="font-size:13px">← BACK</button>
+      </div>
+    `);
+    _bindGlobalSearch();
+    overlay.querySelector('.menu-panel').addEventListener('click', e => {
+      const btn = e.target.closest('[data-langpair]');
+      if (btn) { _lsLangPair = btn.dataset.langpair; renderListSelect(); }
+    });
+    document.getElementById('backBtn').addEventListener('click', () => goToScreen(SCREENS.PLAYER_SELECT));
+    return;
+  }
+
+  // Shared: entries for this language pair
+  const pairFlat = flat.filter(e => e.langPair === _lsLangPair);
+  const lang1 = pairFlat[0]?.lang1 || _lsLangPair;
+  const lang2 = pairFlat[0]?.lang2 || '';
+
+  // ── Step 2: Category ─────────────────────────────────────────────────────
+  if (!_lsCategory) {
+    const catCounts = {};
+    for (const e of pairFlat) { catCounts[e.category] = (catCounts[e.category] || 0) + 1; }
+    const catBtns = Object.entries(catCounts).map(([cat, count]) =>
+      `<button class="menu-btn" data-cat="${cat}">
+        ${_catIcon(cat)} ${cat}
+        <span style="font-size:11px;opacity:0.6;margin-left:8px">${count} list${count !== 1 ? 's' : ''}</span>
+      </button>`
+    ).join('');
+
+    showOverlay(`
+      <div class="menu-panel">
+        <div class="menu-section-title">${lang1} ↔ ${lang2}</div>
+        <div class="menu-title" style="font-size:32px;margin-bottom:6px">CHOOSE MISSION</div>
+        <input class="menu-input" id="listSearch" type="search" placeholder="Search all lists…" autocomplete="off" />
+        <div class="menu-section-title">Category</div>
+        ${catBtns}
+        <button class="menu-btn back-btn" id="backBtn" style="font-size:13px">← Language</button>
+      </div>
+    `);
+    _bindGlobalSearch();
+    overlay.querySelector('.menu-panel').addEventListener('click', e => {
+      const btn = e.target.closest('[data-cat]');
+      if (btn) { _lsCategory = btn.dataset.cat; renderListSelect(); }
+    });
+    document.getElementById('backBtn').addEventListener('click', () => { _lsLangPair = ''; renderListSelect(); });
+    return;
+  }
+
+  // ── Step 3: List items (with inline local search) ────────────────────────
+  const catFlat = pairFlat.filter(e => e.category === _lsCategory);
+
+  // Group entries
+  const groups = {};
+  for (const e of catFlat) {
+    const g = e.group || '';
+    if (!groups[g]) groups[g] = [];
+    groups[g].push(e);
+  }
+
+  let listHtml = '';
+  for (const [groupName, entries] of Object.entries(groups)) {
+    if (groupName) {
+      listHtml += `<div class="list-group-header">${groupName}</div>`;
+    }
+    listHtml += entries.map(e =>
+      `<button class="menu-btn" data-list="${e.id}"
+          data-terms="${(e.label + ' ' + (e.subtitle || '') + ' ' + groupName).toLowerCase()}">
+        ${e.label}
+        ${e.subtitle ? `<span style="font-size:11px;opacity:0.6;margin-left:8px">${e.subtitle}</span>` : ''}
+      </button>`
+    ).join('');
+  }
+
+  showOverlay(`
+    <div class="menu-panel">
+      <div class="menu-section-title">${lang1} ↔ ${lang2} › ${_catIcon(_lsCategory)} ${_lsCategory}</div>
+      <div class="menu-title" style="font-size:32px;margin-bottom:6px">CHOOSE MISSION</div>
+      <input class="menu-input" id="listSearch" type="search" placeholder="Search in ${_lsCategory}…" autocomplete="off" />
+      <div id="listItems" style="max-height:52vh;overflow-y:auto">${listHtml}</div>
+      <button class="menu-btn back-btn" id="backBtn" style="font-size:13px">← Category</button>
+    </div>
+  `);
+
+  // Local inline search — filters visible items without re-rendering
+  document.getElementById('listSearch').addEventListener('input', e => {
+    const q = e.target.value.toLowerCase().trim();
+    const container = document.getElementById('listItems');
+    container.querySelectorAll('[data-list]').forEach(btn => {
+      btn.style.display = (!q || btn.dataset.terms.includes(q)) ? '' : 'none';
+    });
+    // Hide group headers whose children are all hidden
+    container.querySelectorAll('.list-group-header').forEach(header => {
+      let sib = header.nextElementSibling;
+      let anyVisible = false;
+      while (sib && !sib.classList.contains('list-group-header')) {
+        if (sib.style.display !== 'none') anyVisible = true;
+        sib = sib.nextElementSibling;
+      }
+      header.style.display = anyVisible ? '' : 'none';
+    });
   });
+
+  _bindListPick();
+  document.getElementById('backBtn').addEventListener('click', () => { _lsCategory = ''; renderListSelect(); });
 }
 
 // ---- DIRECTION SELECT ----
@@ -469,11 +645,24 @@ function _showModifierBanner(modifier, round, onDone) {
 }
 
 // ---- START GAME ----
-function startGame() {
+async function startGame() {
   hideOverlay();
   currentScreen = SCREENS.PLAYING;
   if (touchControls) {
     touchControls.classList.toggle('hidden', !isTouchDevice());
+  }
+
+  // Lazy-load the CSV if not yet cached
+  if (!wordLists[selectedList]) {
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#4a7a4a';
+    ctx.font = 'bold 20px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('LOADING MISSION...', canvas.width / 2, canvas.height / 2);
+    const entry = getManifest().find(e => e.id === selectedList) || { id: selectedList };
+    wordLists[selectedList] = await fetchWordList(entry);
   }
 
   // Clear canvas
@@ -701,11 +890,17 @@ function renderLeaderboard() {
 
 // ---- Screen transition ----
 function goToScreen(screen) {
-  // Reset progression if player navigates away from the run entirely
+  // Reset round progression when leaving a run entirely
   if (screen === SCREENS.LIST_SELECT || screen === SCREENS.TITLE || screen === SCREENS.PLAYER_SELECT) {
     currentRound = 1;
     activeModifier = null;
     _originalDirection = '';
+  }
+  // Reset list-select navigation when going all the way back to title/player
+  if (screen === SCREENS.TITLE || screen === SCREENS.PLAYER_SELECT) {
+    _lsLangPair = '';
+    _lsCategory = '';
+    _lsSearch = '';
   }
   currentScreen = screen;
   if (touchControls) {

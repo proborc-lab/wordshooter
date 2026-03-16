@@ -18,8 +18,36 @@ export class Level {
       canvas.height - 470,  // tier 4 — high
     ];
     this.bgStars = this._generateBgElements();
+    this.bgIndustrial = this._generateBgElementsIndustrial();
+    this.theme = 'forest'; // 'forest' | 'industrial'
     this.difficulty = 0; // set externally by Game when correctCount milestones hit
     this.generate();
+  }
+
+  _generateBgElementsIndustrial() {
+    const elements = [];
+    // Factories, silos, and smokestacks pre-generated for industrial theme
+    for (let i = 0; i < 28; i++) {
+      const type = Math.random() < 0.35 ? 'smokestack' : 'factory';
+      const w = type === 'smokestack' ? 18 + Math.random() * 14 : 55 + Math.random() * 90;
+      const h = type === 'smokestack' ? 120 + Math.random() * 140 : 55 + Math.random() * 130;
+      const windows = [];
+      if (type === 'factory') {
+        for (let dy = 12; dy < h - 12; dy += 20) {
+          for (let dx = 6; dx < w - 8; dx += 16) {
+            windows.push({ dx, dy, lit: Math.random() > 0.25 });
+          }
+        }
+      }
+      elements.push({
+        x: Math.random() * 9000,
+        w, h, type,
+        // Steel-grey factory walls
+        color: `rgb(${30 + Math.floor(Math.random() * 20)},${30 + Math.floor(Math.random() * 18)},${35 + Math.floor(Math.random() * 15)})`,
+        windows
+      });
+    }
+    return elements;
   }
 
   _generateBgElements() {
@@ -92,9 +120,13 @@ export class Level {
 
     const y = this.tiers[newTier] + (Math.random() - 0.5) * 20;
 
-    // Colour deepens with height
-    const tileColors   = ['#2d4a2d', '#325233', '#3a5a3a', '#426242', '#4a6a4a'];
-    const accentColors = ['#1a3a1a', '#1f3f1f', '#253a25', '#2a4a2a', '#304a30'];
+    // Colour deepens with height — forest or industrial palette
+    const tileColors   = this.theme === 'industrial'
+      ? ['#3a3a42', '#404048', '#454550', '#4a4a55', '#50505a']
+      : ['#2d4a2d', '#325233', '#3a5a3a', '#426242', '#4a6a4a'];
+    const accentColors = this.theme === 'industrial'
+      ? ['#22222a', '#26262e', '#2a2a32', '#2e2e36', '#32323a']
+      : ['#1a3a1a', '#1f3f1f', '#253a25', '#2a4a2a', '#304a30'];
 
     const platform = {
       x, y, width,
@@ -175,60 +207,129 @@ export class Level {
     const cameraX = this.cameraX;
     const ch = this.canvas.height;
     const cw = this.canvas.width;
+    const industrial = this.theme === 'industrial';
 
-    // Sky gradient (cached; invalidated when canvas height changes)
-    if (!this._skyGrad || this._skyGradH !== ch) {
+    // ── Sky ──────────────────────────────────────────────────────────────────
+    const skyKey = industrial ? 'ind' : 'for';
+    if (!this._skyGrad || this._skyGradH !== ch || this._skyGradKey !== skyKey) {
       const grad = ctx.createLinearGradient(0, 0, 0, ch);
-      grad.addColorStop(0, '#050a05');
-      grad.addColorStop(0.6, '#0a150a');
-      grad.addColorStop(1, '#0f1a0f');
+      if (industrial) {
+        grad.addColorStop(0, '#0e0c10');   // near-black purple-grey
+        grad.addColorStop(0.45, '#1a1218'); // dark charcoal
+        grad.addColorStop(0.85, '#251810'); // amber haze near ground
+        grad.addColorStop(1,    '#321d08'); // warm copper glow
+      } else {
+        grad.addColorStop(0, '#050a05');
+        grad.addColorStop(0.6, '#0a150a');
+        grad.addColorStop(1, '#0f1a0f');
+      }
       this._skyGrad = grad;
       this._skyGradH = ch;
+      this._skyGradKey = skyKey;
     }
     ctx.fillStyle = this._skyGrad;
     ctx.fillRect(0, 0, cw, ch);
 
-    // Background buildings (parallax 0.3)
-    ctx.fillStyle = 'rgba(60, 90, 60, 0.4)'; // shared window colour
-    for (const b of this.bgStars) {
-      const bx = b.x - cameraX * 0.3;
-      const screenX = ((bx % (cw + 200)) + cw + 200) % (cw + 200) - 100;
-      ctx.fillStyle = b.color;
-      ctx.fillRect(screenX, ch - b.h, b.w, b.h);
-      // Pre-computed lit windows (offsets relative to building top-left)
-      ctx.fillStyle = 'rgba(60, 90, 60, 0.4)';
-      const buildingTop = ch - b.h;
-      for (const { dx, dy } of b.windows) {
-        ctx.fillRect(screenX + dx, buildingTop + dy, 6, 8);
+    if (industrial) {
+      // ── Industrial background — factories & smokestacks (parallax 0.3) ────
+      for (const b of this.bgIndustrial) {
+        const bx = b.x - cameraX * 0.3;
+        const screenX = ((bx % (cw + 250)) + cw + 250) % (cw + 250) - 100;
+        const buildingTop = ch - b.h;
+
+        if (b.type === 'smokestack') {
+          // Tapered chimney
+          ctx.fillStyle = b.color;
+          const taper = Math.round(b.w * 0.15);
+          ctx.fillRect(screenX + taper, buildingTop, b.w - taper * 2, b.h);
+          // Copper rim at top
+          ctx.fillStyle = '#7a3e10';
+          ctx.fillRect(screenX, buildingTop, b.w, 4);
+          // Smoke puff (animated via time)
+          const puffY = buildingTop - 18 - ((Date.now() / 1200 + b.x * 0.01) % 1) * 25;
+          ctx.save();
+          ctx.globalAlpha = 0.18;
+          ctx.fillStyle = '#888888';
+          ctx.beginPath();
+          ctx.ellipse(screenX + b.w / 2, puffY, b.w * 0.85, 12, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        } else {
+          // Factory building
+          ctx.fillStyle = b.color;
+          ctx.fillRect(screenX, buildingTop, b.w, b.h);
+          // Horizontal band (industrial floor marker)
+          ctx.fillStyle = '#2a2a32';
+          ctx.fillRect(screenX, buildingTop + Math.floor(b.h * 0.5), b.w, 3);
+          // Windows — furnace-orange if lit
+          const buildingTopY = buildingTop;
+          for (const { dx, dy, lit } of b.windows) {
+            ctx.fillStyle = lit ? 'rgba(255, 110, 20, 0.55)' : 'rgba(20, 20, 28, 0.8)';
+            ctx.fillRect(screenX + dx, buildingTopY + dy, 7, 9);
+          }
+        }
+      }
+
+      // Distant pipes / cable lines (parallax 0.5)
+      ctx.save();
+      ctx.globalAlpha = 0.22;
+      ctx.strokeStyle = '#5a4a30';
+      ctx.lineWidth = 3;
+      for (let i = 0; i < 18; i++) {
+        const px = ((i * 170 - cameraX * 0.5) % (cw + 200) + cw + 200) % (cw + 200) - 100;
+        const py1 = ch * 0.28 + Math.sin(i * 1.7) * 35;
+        const py2 = ch * 0.35 + Math.sin(i * 2.1) * 30;
+        ctx.beginPath();
+        ctx.moveTo(px, py1);
+        ctx.bezierCurveTo(px + 60, py1 + 20, px + 110, py2 - 20, px + 170, py2);
+        ctx.stroke();
+      }
+      ctx.restore();
+
+    } else {
+      // ── Forest background — buildings (parallax 0.3) ──────────────────────
+      for (const b of this.bgStars) {
+        const bx = b.x - cameraX * 0.3;
+        const screenX = ((bx % (cw + 200)) + cw + 200) % (cw + 200) - 100;
+        ctx.fillStyle = b.color;
+        ctx.fillRect(screenX, ch - b.h, b.w, b.h);
+        ctx.fillStyle = 'rgba(60, 90, 60, 0.4)';
+        const buildingTop = ch - b.h;
+        for (const { dx, dy } of b.windows) {
+          ctx.fillRect(screenX + dx, buildingTop + dy, 6, 8);
+        }
+      }
+
+      // Distant trees (parallax 0.5)
+      ctx.fillStyle = '#0f200f';
+      for (let i = 0; i < 25; i++) {
+        const tx = ((i * 140 - cameraX * 0.5) % (cw + 200) + cw + 200) % (cw + 200) - 100;
+        const th = 40 + (i % 5) * 20;
+        ctx.fillRect(tx, ch - this.groundY * 0 - th - 60, 12, th);
+        ctx.beginPath();
+        ctx.moveTo(tx - 18, ch - 60 - th + 10);
+        ctx.lineTo(tx + 6, ch - 60 - th - 30);
+        ctx.lineTo(tx + 30, ch - 60 - th + 10);
+        ctx.closePath();
+        ctx.fill();
       }
     }
 
-    // Distant trees (parallax 0.5)
-    ctx.fillStyle = '#0f200f';
-    for (let i = 0; i < 25; i++) {
-      const tx = ((i * 140 - cameraX * 0.5) % (cw + 200) + cw + 200) % (cw + 200) - 100;
-      const th = 40 + (i % 5) * 20;
-      ctx.fillRect(tx, ch - this.groundY * 0 - th - 60, 12, th);
-      ctx.beginPath();
-      ctx.moveTo(tx - 18, ch - 60 - th + 10);
-      ctx.lineTo(tx + 6, ch - 60 - th - 30);
-      ctx.lineTo(tx + 30, ch - 60 - th + 10);
-      ctx.closePath();
-      ctx.fill();
-    }
+    // ── Platforms ─────────────────────────────────────────────────────────────
+    const tile = industrial
+      ? Sprites.cache.platformTileIndustrial
+      : Sprites.cache.platformTile;
+    const shadowColor = industrial ? '#12121a' : '#1a2e1a';
 
-    // Platforms
-    const tile = Sprites.cache.platformTile;
     for (const p of this.getPlatformsInView()) {
       const sx = Math.round(p.x - cameraX);
       const sy = Math.round(p.y);
 
-      // Base fill (covers any gap below the tile)
-      ctx.fillStyle = p.tileColor || '#2d4a2d';
+      // Base fill
+      ctx.fillStyle = p.tileColor || (industrial ? '#3a3a42' : '#2d4a2d');
       ctx.fillRect(sx, sy, p.width, p.height);
 
       if (tile) {
-        // Tile the platform sprite horizontally (and a second row if platform is tall enough)
         ctx.save();
         ctx.imageSmoothingEnabled = false;
         ctx.beginPath();
@@ -243,16 +344,54 @@ export class Level {
         ctx.restore();
       }
 
-      // Moving platform indicator — animated green stripe on top
-      if (p.moveVx !== undefined) {
+      // Boost pad — animated upward arrows and pulsing amber glow
+      if (p.isBoostPad) {
+        const t = Date.now() / 500;
+        const pulse = 0.5 + 0.5 * Math.sin(t * Math.PI * 2);
+        ctx.save();
+        // Glowing top strip
+        ctx.globalAlpha = 0.55 + pulse * 0.35;
+        ctx.fillStyle = '#ff8800';
+        ctx.fillRect(sx, sy, p.width, 3);
+        // Upward chevrons scrolling upward
+        ctx.globalAlpha = 0.45 + pulse * 0.3;
+        ctx.fillStyle = '#ffcc44';
+        const phase = (Date.now() / 220) % 18;
+        for (let ci = 0; ci < p.width - 12; ci += 24) {
+          const ax = sx + ci + 6;
+          const ay = sy + p.height - 4 - phase;
+          ctx.beginPath();
+          ctx.moveTo(ax,      ay);
+          ctx.lineTo(ax + 8,  ay + 7);
+          ctx.lineTo(ax + 16, ay);
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = '#ffcc44';
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(ax,      ay - 7);
+          ctx.lineTo(ax + 8,  ay);
+          ctx.lineTo(ax + 16, ay - 7);
+          ctx.stroke();
+        }
+        // Side amber edge glow
+        ctx.globalAlpha = 0.25 + pulse * 0.2;
+        ctx.strokeStyle = '#ff8800';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(sx + 1, sy + 1, p.width - 2, p.height - 2);
+        ctx.restore();
+      }
+
+      // Moving platform indicator
+      if (p.moveVx !== undefined && !p.isBoostPad) {
         const phase = ((Date.now() / 300) + p.moveOriginX * 0.01) % 1;
+        const stripeColor = industrial ? '#ff8833' : '#44ff88';
+        const chevronColor = industrial ? '#ffaa66' : '#88ffaa';
         ctx.save();
         ctx.globalAlpha = 0.45;
-        ctx.fillStyle = '#44ff88';
+        ctx.fillStyle = stripeColor;
         ctx.fillRect(sx, sy, p.width, 3);
-        // Chevrons showing direction
         ctx.globalAlpha = 0.5;
-        ctx.fillStyle = p.moveVx > 0 ? '#88ffaa' : '#aaffcc';
+        ctx.fillStyle = chevronColor;
         for (let ci = 0; ci < p.width; ci += 18) {
           const cx2 = sx + (ci + phase * 18) % p.width;
           const dir = p.moveVx > 0 ? 1 : -1;
@@ -261,21 +400,21 @@ export class Level {
           ctx.lineTo(cx2 + 5 * dir, sy + 6);
           ctx.lineTo(cx2, sy + 11);
           ctx.lineWidth = 1.5;
-          ctx.strokeStyle = '#44ff88';
+          ctx.strokeStyle = stripeColor;
           ctx.stroke();
         }
         ctx.restore();
       }
 
       // Bottom shadow edge
-      ctx.fillStyle = '#1a2e1a';
+      ctx.fillStyle = shadowColor;
       ctx.fillRect(sx, sy + p.height - 2, p.width, 2);
 
       // Danger stripes on ground platforms
       if (p.isGround) {
         ctx.save();
         ctx.globalAlpha = 0.18;
-        ctx.fillStyle = '#885500';
+        ctx.fillStyle = industrial ? '#cc6600' : '#885500';
         for (let i = 0; i < p.width; i += 20) {
           ctx.fillRect(sx + i, sy, 10, p.height);
         }
@@ -284,14 +423,18 @@ export class Level {
     }
 
     // Ground/abyss
-    ctx.fillStyle = '#050f05';
+    ctx.fillStyle = industrial ? '#0a080c' : '#050f05';
     ctx.fillRect(0, this.groundY + 60, cw, ch - this.groundY - 60);
   }
 
   spawnBossArena(cameraX) {
     const startX = cameraX + this.canvas.width * 0.25;
-    const tileColors   = ['#2d4a2d', '#325233', '#3a5a3a', '#426242', '#4a6a4a'];
-    const accentColors = ['#1a3a1a', '#1f3f1f', '#253a25', '#2a4a2a', '#304a30'];
+    const tileColors   = this.theme === 'industrial'
+      ? ['#3a3a42', '#404048', '#454550', '#4a4a55', '#50505a']
+      : ['#2d4a2d', '#325233', '#3a5a3a', '#426242', '#4a6a4a'];
+    const accentColors = this.theme === 'industrial'
+      ? ['#22222a', '#26262e', '#2a2a32', '#2e2e36', '#32323a']
+      : ['#1a3a1a', '#1f3f1f', '#253a25', '#2a4a2a', '#304a30'];
 
     // 4 spelling-box platforms — tagged isBossArena so _startBossRound places boxes on them
     const spellingLayout = [
@@ -307,6 +450,19 @@ export class Level {
         isBossArena: true, decorated: true
       });
     }
+
+    // Boost pad — wide moving platform near ground that catapults the player upward
+    const bpX = startX + 300;
+    const bpY = this.tiers[0] - 12;  // just above ground level
+    const boostPad = {
+      x: bpX, y: bpY, width: 220, height: 14,
+      tileColor: '#1a1a0a', accentColor: '#331100', tier: 0,
+      isBoostPad: true, decorated: true,
+      moveVx: 60,
+      moveOriginX: bpX + 110,
+      moveRangeX: 190,
+    };
+    this.platforms.push(boostPad);
 
     // High flanking platforms so the player can reach shooting height (tier 4 hits the boss)
     // Boss floats near canvas.height * 0.15; tier 4 (canvas.height - 470) puts player at boss height

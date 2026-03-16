@@ -28,13 +28,17 @@ export class Player {
     this.tumbleAngle = 0;
     this.flipTimer = 0;   // counts down from 0.6 on double-jump
     this.flipAngle = 0;   // 0 → 2π over the flip duration
+    this.gravityMult = 1.0;  // modifier hook (e.g. lowGravity sets to 0.45)
+    this.jumpMult = 1.0;     // modifier hook (e.g. lowGravity sets to 1.55)
+    this.tinted = false;     // true in industrial rounds (3 & 4) — copper tint
+    this.boostTimer = 0;     // > 0 → ignore platform collision (boss boost pad)
   }
 
   update(dt, platforms, keys) {
-    const gravity = 1200;
+    const gravity = 1200 * this.gravityMult;
     const maxFall = 800;
     const moveSpeed = this.speedBoost ? 420 : 280;
-    const jumpVel = -650;
+    const jumpVel = -650 * this.jumpMult;
 
     // Horizontal movement
     let moving = false;
@@ -87,8 +91,16 @@ export class Player {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
 
-    // Platform collision
+    // Boost-pad pass-through timer
+    if (this.boostTimer > 0) {
+      this.boostTimer -= dt;
+      // Restore jumps the moment the boost expires so landing feels normal
+      if (this.boostTimer <= 0) this.jumpsLeft = 2;
+    }
+
+    // Platform collision (skipped while boost-pad timer is active)
     this.onGround = false;
+    if (this.boostTimer > 0) return;
     for (const p of platforms) {
       if (this._collidesPlatform(p)) {
         // Landing on top
@@ -188,7 +200,8 @@ export class Player {
       return;
     }
 
-    const spriteName = this.facingRight ? 'playerRight' : 'playerLeft';
+    const suffix = this.tinted ? 'Tinted' : '';
+    const spriteName = (this.facingRight ? 'playerRight' : 'playerLeft') + suffix;
     const frame = this.onGround ? this.walkFrame : 3;
 
     // Tumbling fall — spin with distress marker
@@ -196,8 +209,8 @@ export class Player {
       ctx.save();
       ctx.translate(x + w / 2, y + h / 2);
       ctx.rotate(this.tumbleAngle);
-      const tumblingName = Math.floor(this.tumbleAngle / (Math.PI * 0.5)) % 2 === 0
-        ? 'playerRight' : 'playerLeft';
+      const tumblingName = (Math.floor(this.tumbleAngle / (Math.PI * 0.5)) % 2 === 0
+        ? 'playerRight' : 'playerLeft') + suffix;
       Sprites.draw(ctx, tumblingName, -w / 2, -h / 2, { frame: 3, scale: 2 });
       ctx.rotate(-this.tumbleAngle); // keep text upright
       ctx.fillStyle = '#ff4444';

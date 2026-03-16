@@ -136,8 +136,8 @@ export function drawHUD(ctx, gameState) {
     ctx.fillText(`x${gameState.multiplier} COMBO ${gameState.combo}`, cw - 14, 52);
   }
 
-  // === Current word (centered top) — hidden during boss fight ===
-  const prompt = gameState.bossMode ? '' : gameState.prompt;
+  // === Current word (centered top) — hidden during boss fight or No-Peek ===
+  const prompt = (gameState.bossMode || gameState.promptVisible === false) ? '' : gameState.prompt;
   if (prompt) {
     // Arrow pointing direction
     const l1 = gameState.lang1 || 'A', l2 = gameState.lang2 || 'B';
@@ -157,6 +157,31 @@ export function drawHUD(ctx, gameState) {
     ctx.shadowBlur = 8;
     ctx.fillText(prompt, cw / 2, 35);
     ctx.shadowBlur = 0;
+  }
+
+  // === Round indicator + modifier badge (bottom strip of HUD) ===
+  if (gameState.round > 1) {
+    ctx.fillStyle = '#ffaa44';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(`ROUND ${gameState.round} / 4`, 14, 78);
+  }
+
+  if (gameState.modifier) {
+    const modifierLabels = {
+      boxesMove:    '⇄ BOXES MOVE',
+      mirrorWorld:  '↔ MIRROR WORLD',
+      doubleTrouble:'✦ DOUBLE TROUBLE',
+      noPeek:       '👁 NO-PEEK',
+      lowGravity:   '↑ LOW GRAVITY',
+    };
+    const label = modifierLabels[gameState.modifier] || gameState.modifier.toUpperCase();
+    ctx.fillStyle = '#ff88ff';
+    ctx.font = 'bold 10px monospace';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(label, cw - 14, 78);
   }
 
   // === Timer bar + progress (hidden during boss fight) ===

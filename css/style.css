@@ -15,10 +15,88 @@ canvas {
   display: block;
   width: 100vw;
   height: 100vh;
+  touch-action: none;           /* prevent iOS scroll/zoom on the game canvas */
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ---- On-screen touch controls ---- */
+#touch-controls {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;   /* container is invisible; children opt-in */
+  z-index: 20;
+}
+
+#touch-controls.hidden {
+  display: none;
+}
+
+#tc-dpad-group {
+  position: absolute;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  left: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  pointer-events: all;
+}
+
+#tc-jump-row {
+  display: flex;
+  justify-content: center;
+}
+
+#tc-lr-row {
+  display: flex;
+  gap: 12px;
+}
+
+#tc-actions {
+  position: absolute;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  right: 24px;
+  display: flex;
+  gap: 12px;
+  pointer-events: all;
+}
+
+#tc-pause {
+  position: absolute;
+  bottom: calc(20px + env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: all;
+}
+
+.tc-btn {
+  width: 10vh;
+  height: 10vh;
+  background: rgba(42, 74, 42, 0.45);
+  border: 2px solid rgba(160, 200, 128, 0.55);
+  border-radius: 12px;
+  color: #a0e080;
+  font-size: 4vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.08s, border-color 0.08s;
+}
+
+.tc-btn:active {
+  background: rgba(74, 122, 74, 0.70);
+  border-color: rgba(160, 224, 128, 0.95);
 }
 
 .overlay {
-  position: absolute;
+  position: fixed;       /* fixed so it tracks the visual viewport, not the document */
   top: 0;
   left: 0;
   width: 100%;
@@ -26,7 +104,10 @@ canvas {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;   /* allow scrolling up when keyboard shrinks viewport */
+  padding-top: max(24px, env(safe-area-inset-top));
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+  overflow-y: auto;              /* scroll the overlay when keyboard is open */
   background: rgba(0, 0, 0, 0.85);
   color: #4a7a4a;
   font-family: monospace;
@@ -77,6 +158,8 @@ canvas {
   font-size: 16px;
   cursor: pointer;
   letter-spacing: 2px;
+  touch-action: manipulation;    /* remove 300ms tap delay on Android */
+  -webkit-tap-highlight-color: transparent;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
@@ -104,11 +187,12 @@ canvas {
   border: 1px solid #4a7a4a;
   border-radius: 3px;
   font-family: monospace;
-  font-size: 18px;
+  font-size: 18px;               /* ≥16px prevents Android auto-zoom on focus */
   text-align: center;
   outline: none;
   margin: 8px 0;
   letter-spacing: 2px;
+  touch-action: manipulation;
 }
 
 .menu-input:focus {
@@ -181,4 +265,51 @@ canvas {
   margin-top: 20px;
   font-size: 12px;
   padding: 8px 20px;
+}
+
+/* ---- Modifier banner (shown between game over and next round start) ---- */
+#banner-skip {
+  animation: pulse-green 0.9s ease-in-out infinite alternate;
+  margin-top: 8px;
+}
+
+/* ---- Bonus mission countdown timer ---- */
+#bonus-countdown-wrap {
+  display: block;
+  width: 100%;
+  padding: 16px 20px 12px;
+  margin: 0 0 16px;
+  background: rgba(0, 80, 0, 0.35);
+  border: 2px solid #44ff44;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+  animation: pulse-border 0.9s ease-in-out infinite alternate;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#bonus-countdown-wrap:hover,
+#bonus-countdown-wrap:active {
+  background: rgba(0, 120, 0, 0.55);
+  border-color: #88ff88;
+}
+
+#bonus-countdown {
+  font-size: 64px;
+  color: #44ff44;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+#bonus-countdown-label {
+  font-size: 15px;
+  color: #c0ffc0;
+  letter-spacing: 2px;
+  font-weight: bold;
+}
+
+@keyframes pulse-border {
+  from { border-color: #44ff44; box-shadow: 0 0 8px rgba(68,255,68,0.3); }
+  to   { border-color: #88ff88; box-shadow: 0 0 22px rgba(68,255,68,0.7); }
 }

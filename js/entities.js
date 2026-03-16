@@ -214,6 +214,16 @@ export class WordBox {
       ctx.font = 'bold 20px monospace';
       ctx.fillText('✓', sx + w / 2, sy - 12);
     }
+
+    // Double Trouble: pip indicator showing remaining hits needed
+    if (this.hitsNeeded === 2 && this.state === 'normal') {
+      for (let i = 0; i < 2; i++) {
+        ctx.beginPath();
+        ctx.arc(sx + w / 2 - 8 + i * 16, sy + h - 9, 4, 0, Math.PI * 2);
+        ctx.fillStyle = i < this.hitsRemaining ? '#44ff88' : '#334433';
+        ctx.fill();
+      }
+    }
   }
 
   checkCollision(projectile) {
@@ -1451,6 +1461,107 @@ export class Mine {
       ctx.beginPath();
       ctx.arc(cx, cy, 3, 0, Math.PI * 2);
       ctx.fill();
+    }
+  }
+}
+
+// ── BossKey ───────────────────────────────────────────────────────────────────
+export class BossKey {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.width = 22;
+    this.height = 22;
+    this.vx = (Math.random() - 0.5) * 120;
+    this.vy = -280;
+    this.alive = true;
+    this.landed = false;
+    this.bobTimer = 0;
+    this.glowTimer = 0;
+  }
+
+  update(dt, platforms) {
+    if (this.landed) {
+      this.bobTimer += dt * 2.2;
+      this.glowTimer += dt;
+      return;
+    }
+
+    const gravity = 900;
+    this.vy += gravity * dt;
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+
+    // Land on first platform it hits from above
+    for (const p of platforms) {
+      const prevBottom = this.y + this.height - this.vy * dt;
+      if (
+        this.vy > 0 &&
+        prevBottom <= p.y + 2 &&
+        this.x + this.width > p.x &&
+        this.x < p.x + p.width &&
+        this.y + this.height >= p.y
+      ) {
+        this.y = p.y - this.height - 4;
+        this.vy = 0;
+        this.vx = 0;
+        this.landed = true;
+        break;
+      }
+    }
+  }
+
+  draw(ctx, cameraX) {
+    if (!this.alive) return;
+    const bob = this.landed ? Math.sin(this.bobTimer) * 4 : 0;
+    const sx = Math.round(this.x - cameraX);
+    const sy = Math.round(this.y + bob);
+    const cx = sx + this.width / 2;
+    const cy = sy + this.height / 2;
+
+    // Glow
+    const glow = this.landed ? 0.5 + Math.sin(this.glowTimer * 3) * 0.35 : 0.3;
+    ctx.save();
+    ctx.globalAlpha = glow;
+    ctx.shadowColor = '#ffd700';
+    ctx.shadowBlur = 18;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 215, 0, 0.15)';
+    ctx.fill();
+    ctx.restore();
+
+    // Key bow (round head)
+    ctx.strokeStyle = '#ffd700';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx - 3, cy - 4, 6, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Key shaft
+    ctx.beginPath();
+    ctx.moveTo(cx + 3, cy - 4);
+    ctx.lineTo(cx + 11, cy - 4);
+    ctx.stroke();
+
+    // Key teeth
+    ctx.beginPath();
+    ctx.moveTo(cx + 8, cy - 4);
+    ctx.lineTo(cx + 8, cy);
+    ctx.moveTo(cx + 11, cy - 4);
+    ctx.lineTo(cx + 11, cy + 2);
+    ctx.stroke();
+
+    // "PICK UP" label when landed
+    if (this.landed && Math.floor(this.bobTimer * 1.5) % 2 === 0) {
+      ctx.fillStyle = '#ffd700';
+      ctx.font = 'bold 10px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.shadowColor = '#000';
+      ctx.shadowBlur = 4;
+      ctx.fillText('PICK UP', cx, sy - 6);
+      ctx.shadowBlur = 0;
     }
   }
 }

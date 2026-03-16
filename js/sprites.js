@@ -237,6 +237,73 @@ function makeMonster() {
   });
 }
 
+// ── TINT HELPER ───────────────────────────────────────────────────────────────
+function tintSprite(src, color) {
+  const c = mkCanvas(src.width, src.height);
+  const ctx = c.getContext('2d');
+  ctx.drawImage(src, 0, 0);
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, src.width, src.height);
+  // Restore original alpha mask so transparent pixels stay transparent
+  ctx.globalCompositeOperation = 'destination-in';
+  ctx.drawImage(src, 0, 0);
+  return c;
+}
+
+// ── INDUSTRIAL PLATFORM TILE (40 × 16) ───────────────────────────────────────
+// Steel panels with rivets and a copper accent strip — for rounds 3 & 4
+function makePlatformTileIndustrial() {
+  const W = 40, H = 16;
+  const c = mkCanvas(W, H);
+  const ctx = c.getContext('2d');
+
+  // Base steel fill
+  ctx.fillStyle = '#3a3a42';
+  ctx.fillRect(0, 0, W, H);
+
+  // Top copper accent strip
+  ctx.fillStyle = '#9a5a1a';
+  ctx.fillRect(0, 0, W, 2);
+  ctx.fillStyle = '#cc7722';
+  ctx.fillRect(0, 0, W, 1);
+
+  // Steel panel joints (vertical seams every 20px)
+  ctx.fillStyle = '#22222a';
+  ctx.fillRect(20, 2, 1, H - 4);
+
+  // Panel highlights (lighter centre of each panel)
+  ctx.fillStyle = '#4a4a55';
+  ctx.fillRect(2, 3, 16, 5);
+  ctx.fillRect(22, 3, 16, 5);
+
+  // Rivets — 2 per panel
+  ctx.fillStyle = '#cc8833';
+  ctx.fillRect(4, 4, 3, 3);   // left panel left rivet
+  ctx.fillRect(14, 4, 3, 3);  // left panel right rivet
+  ctx.fillRect(24, 4, 3, 3);  // right panel left rivet
+  ctx.fillRect(34, 4, 3, 3);  // right panel right rivet
+  // Rivet highlight
+  ctx.fillStyle = '#ffbb55';
+  ctx.fillRect(4, 4, 1, 1);
+  ctx.fillRect(14, 4, 1, 1);
+  ctx.fillRect(24, 4, 1, 1);
+  ctx.fillRect(34, 4, 1, 1);
+
+  // Grill slots at the bottom
+  ctx.fillStyle = '#1a1a22';
+  ctx.fillRect(5,  11, 5, 2);
+  ctx.fillRect(12, 11, 5, 2);
+  ctx.fillRect(25, 11, 5, 2);
+  ctx.fillRect(32, 11, 5, 2);
+
+  // Bottom shadow
+  ctx.fillStyle = '#12121a';
+  ctx.fillRect(0, H - 2, W, 2);
+
+  return c;
+}
+
 // ── PLATFORM TILE (40 × 16) ──────────────────────────────────────────────────
 // Repeating brick tile — horizontally tileable
 function makePlatformTile() {
@@ -301,9 +368,14 @@ export const Sprites = {
     this.cache.playerRight = playerFrames;
     this.cache.playerLeft  = playerFrames.map(f => flipH(f));
 
+    // Industrial (copper-tinted) player variants for rounds 3 & 4
+    this.cache.playerRightTinted = playerFrames.map(f => tintSprite(f, '#cc7733'));
+    this.cache.playerLeftTinted  = playerFrames.map(f => tintSprite(flipH(f), '#cc7733'));
+
     this.cache.monster = makeMonster();
 
     this.cache.platformTile = makePlatformTile();
+    this.cache.platformTileIndustrial = makePlatformTileIndustrial();
   },
 
   /**

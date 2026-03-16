@@ -48,6 +48,9 @@ let selectedSpeed = 'normal';
 let currentGame = null;
 let lastScore = 0;
 let lastVictory = false;
+let currentRound = 1;
+let activeModifier = null;
+let _originalDirection = ''; // remember round-1 direction for resetting
 const audio = new AudioManager();
 
 // Title-screen animation state (module-level so we can cancel/remove on re-entry)
@@ -57,6 +60,24 @@ let _titleClickHandler = null;
 
 // Overlay element for HTML menus
 const overlay = document.getElementById('overlay');
+
+// Touch controls — only visible on touch devices during gameplay
+const touchControls = document.getElementById('touch-controls');
+const isTouchDevice = () => navigator.maxTouchPoints > 0;
+
+// Android virtual keyboard: when the visual viewport shrinks (keyboard opened),
+// scroll the focused input into view so it isn't hidden behind the keyboard.
+if (window.visualViewport) {
+  window.visualViewport.addEventListener('resize', () => {
+    // Slight delay so iOS keyboard animation finishes before we scroll
+    setTimeout(() => {
+      const focused = document.activeElement;
+      if (focused && (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA')) {
+        focused.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    }, 100);
+  });
+}
 
 // ---- Screen rendering ----
 function renderCurrentScreen() {
@@ -215,7 +236,9 @@ function renderPlayerSelect() {
   const input = document.getElementById('playerInput');
   const playBtn = document.getElementById('playBtn');
 
-  input.focus();
+  // Only auto-focus on non-touch devices; on Android programmatic focus
+  // before a user gesture suppresses the virtual keyboard.
+  if (!isTouchDevice()) input.focus();
 
   input.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && input.value.trim()) {
@@ -319,7 +342,7 @@ function renderDirectionSelect() {
         <span><kbd style="color:#c0e090">← → / A D</kbd> Move</span>
         <span><kbd style="color:#c0e090">Z / Ctrl / Click</kbd> Shoot</span>
         <span><kbd style="color:#c0e090">↑ / W / Space</kbd> Jump</span>
-        <span><kbd style="color:#c0e090">Right Shift</kbd> Knife (melee)</span>
+        <span><kbd style="color:#c0e090">Shift</kbd> Knife (melee)</span>
         <span><kbd style="color:#c0e090">double jump</kbd> in the air</span>
         <span><kbd style="color:#c0e090">P / ESC</kbd> Pause</span>
       </div>
@@ -340,6 +363,9 @@ function renderDirectionSelect() {
     const dirBtn = e.target.closest('[data-dir]');
     if (dirBtn) {
       selectedDirection = dirBtn.dataset.dir;
+      _originalDirection = selectedDirection;
+      currentRound = 1;
+      activeModifier = null;
       startGame();
     }
   });
@@ -374,10 +400,81 @@ function _renderMiniLeaderboard(listName) {
   return html;
 }
 
+// ---- BONUS ROUND PROGRESSION ----
+const MODIFIER_INFO = {
+  boxesMove:     { icon: '⇄', name: 'BOXES MOVE',     desc: 'The answer boxes slide back and forth — aim carefully!' },
+  mirrorWorld:   { icon: '↔', name: 'MIRROR WORLD',   desc: 'Left and right are swapped. Your brain will fight you.' },
+  doubleTrouble: { icon: '✦', name: 'DOUBLE TROUBLE', desc: 'The correct box needs two hits before it counts.' },
+  noPeek:        { icon: '👁', name: 'NO-PEEK',        desc: 'The prompt vanishes after 2.5 seconds. Remember it fast!' },
+  lowGravity:    { icon: '↑', name: 'LOW GRAVITY',    desc: 'Lighter jumps — platforms feel further apart.' },
+};
+
+function _advanceRound() {
+  currentRound++;
+  const pool = ['boxesMove', 'mirrorWorld', 'doubleTrouble', 'noPeek', 'lowGravity'];
+  if (currentRound === 2 || currentRound === 4) {
+    const available = pool.filter(m => m !== activeModifier);
+    activeModifier = available[Math.floor(Math.random() * available.length)];
+  } else {
+    activeModifier = null;
+  }
+  if (currentRound === 3) {
+    _originalDirection = selectedDirection;
+    selectedDirection = selectedDirection === 'a-to-b' ? 'b-to-a' : 'a-to-b';
+  }
+  _showModifierBanner(activeModifier, currentRound, startGame);
+}
+
+function _showModifierBanner(modifier, round, onDone) {
+  const info = modifier ? MODIFIER_INFO[modifier] : null;
+  const listEntry = getManifest().find(e => e.id === selectedList) || {};
+  const l1 = listEntry.lang1 || 'A', l2 = listEntry.lang2 || 'B';
+  const dirLabel = selectedDirection === 'a-to-b' ? `${l1} → ${l2}` : `${l2} → ${l1}`;
+
+  const modifierBlock = info ? `
+    <div style="font-size:64px;margin:8px 0;line-height:1">${info.icon}</div>
+    <div style="font-size:32px;font-weight:bold;color:#44ff44;letter-spacing:4px;margin-bottom:12px">${info.name}</div>
+    <div style="font-size:15px;color:#c0ffc0;margin-bottom:20px;line-height:1.5">${info.desc}</div>
+  ` : `
+    <div style="font-size:64px;margin:8px 0;line-height:1">↔</div>
+    <div style="font-size:28px;font-weight:bold;color:#44aaff;letter-spacing:3px;margin-bottom:12px">REVERSED DIRECTION</div>
+    <div style="font-size:15px;color:#aaddff;margin-bottom:20px;line-height:1.5">Translate ${dirLabel} — the other way around.</div>
+  `;
+
+  showOverlay(`
+    <div style="text-align:center;padding:40px 32px;max-width:480px">
+      <div style="font-size:12px;color:#6a9a6a;letter-spacing:3px;margin-bottom:16px">ROUND ${round} / 4 — BONUS MISSION UNLOCKED</div>
+      ${modifierBlock}
+      <div style="font-size:12px;color:#4a7a4a;letter-spacing:2px" id="banner-skip">TAP OR WAIT...</div>
+    </div>
+  `);
+
+  let remaining = 3;
+  const skipEl = document.getElementById('banner-skip');
+
+  const tick = setInterval(() => {
+    remaining--;
+    if (skipEl) skipEl.textContent = remaining > 0 ? `TAP OR WAIT ${remaining}...` : '';
+    if (remaining <= 0) {
+      clearInterval(tick);
+      onDone();
+    }
+  }, 1000);
+
+  overlay.addEventListener('click', function dismiss() {
+    clearInterval(tick);
+    overlay.removeEventListener('click', dismiss);
+    onDone();
+  }, { once: true });
+}
+
 // ---- START GAME ----
 function startGame() {
   hideOverlay();
   currentScreen = SCREENS.PLAYING;
+  if (touchControls) {
+    touchControls.classList.toggle('hidden', !isTouchDevice());
+  }
 
   // Clear canvas
   ctx.fillStyle = '#0a0a0a';
@@ -406,7 +503,7 @@ function startGame() {
     canvas, wordList, selectedDirection, selectedPlayer,
     audio, LB, selectedSpeed,
     listMeta.lang1 || 'A', listMeta.lang2 || 'B',
-    selectedList, onGameOver
+    selectedList, onGameOver, activeModifier, currentRound
   );
 
   currentGame.start();
@@ -424,6 +521,35 @@ function renderGameOver() {
   const l1 = dirEntry.lang1 || 'A', l2 = dirEntry.lang2 || 'B';
   const dirLabel = selectedDirection === 'a-to-b' ? `${l1} → ${l2}` : `${l2} → ${l1}`;
 
+  // Undeniable Victory: player has beaten all 4 rounds
+  const trueVictory = lastVictory && currentRound === 4;
+  // Bonus offer: player won and more rounds remain
+  const offerBonus = lastVictory && currentRound < 4;
+
+  const roundLabels = {
+    2: `Bonus Round: <span style="color:#ff88ff">${_modifierDisplayName(activeModifier) || '???'}</span>`,
+    3: 'Round 3: <span style="color:#44aaff">Reversed Direction</span>',
+    4: `Final Round: <span style="color:#ff88ff">${_modifierDisplayName(activeModifier) || '???'}</span> + Reversed`,
+  };
+  const nextRoundLabel = roundLabels[currentRound + 1] || '';
+
+  const countdownHtml = offerBonus ? `
+    <div id="bonus-countdown-wrap">
+      <div id="bonus-countdown">10</div>
+      <div id="bonus-countdown-label">🎁 Click to unlock Bonus Mission!</div>
+      <div style="font-size:12px;color:#88cc88;margin-top:4px">${nextRoundLabel}</div>
+    </div>
+  ` : '';
+
+  const trueVictoryHtml = trueVictory ? `
+    <div style="color:#ffd700;font-size:38px;font-weight:bold;letter-spacing:3px;margin:8px 0;text-shadow:0 0 24px #ffaa00">UNDENIABLE VICTORY!</div>
+    <div style="color:#aaffcc;font-size:14px;margin-bottom:16px">The Spelling Overlord has been mastered in all four rounds!</div>
+    <div style="color:#88ccff;font-size:13px;margin-bottom:20px;font-style:italic">Are you strong enough to face it again?</div>
+    <button class="menu-btn" id="playAgainBtn" style="border-color:#ffd700;color:#ffd700">▶ FACE IT AGAIN (Round 1)</button>
+  ` : `
+    <button class="menu-btn" id="playAgainBtn">▶ PLAY AGAIN</button>
+  `;
+
   showOverlay(`
     <div class="menu-panel">
       <div class="menu-title" style="color:${lastVictory ? '#44ff44' : '#cc2222'};font-size:36px">
@@ -432,14 +558,44 @@ function renderGameOver() {
       <div class="menu-subtitle">${listLabel} · ${dirLabel}</div>
       <div style="color:#a0e080;font-size:28px;margin:16px 0;font-weight:bold">${lastScore} pts</div>
       ${rankText ? `<div style="color:#ffdd00;font-size:14px;margin-bottom:12px">${rankText}</div>` : ''}
-      <button class="menu-btn" id="playAgainBtn">▶ PLAY AGAIN</button>
+      ${countdownHtml}
+      ${trueVictoryHtml}
       <button class="menu-btn" id="changeListBtn">🔄 CHANGE MISSION</button>
       <button class="menu-btn" id="lbBtn2">📊 LEADERBOARD</button>
       <button class="menu-btn back-btn" id="titleBtn">⌂ MAIN MENU</button>
     </div>
   `);
 
+  // Countdown logic
+  if (offerBonus) {
+    let secs = 10;
+    const cdEl    = document.getElementById('bonus-countdown');
+    const cdWrap  = document.getElementById('bonus-countdown-wrap');
+
+    const tick = setInterval(() => {
+      secs--;
+      if (cdEl) cdEl.textContent = secs;
+      if (secs <= 0) {
+        clearInterval(tick);
+        if (cdWrap) cdWrap.style.display = 'none';
+      }
+    }, 1000);
+
+    const onBonusClick = () => {
+      clearInterval(tick);
+      _advanceRound();
+    };
+    cdWrap.addEventListener('click', onBonusClick);
+  }
+
   document.getElementById('playAgainBtn').addEventListener('click', () => {
+    if (trueVictory) {
+      // Reset to round 1 with original direction
+      currentRound = 1;
+      activeModifier = null;
+      if (_originalDirection) selectedDirection = _originalDirection;
+      _originalDirection = '';
+    }
     startGame();
   });
 
@@ -454,6 +610,17 @@ function renderGameOver() {
   document.getElementById('titleBtn').addEventListener('click', () => {
     goToScreen(SCREENS.TITLE);
   });
+}
+
+function _modifierDisplayName(mod) {
+  const names = {
+    boxesMove:    'Boxes Move',
+    mirrorWorld:  'Mirror World',
+    doubleTrouble:'Double Trouble',
+    noPeek:       'No-Peek',
+    lowGravity:   'Low Gravity',
+  };
+  return names[mod] || null;
 }
 
 // ---- LEADERBOARD ----
@@ -534,7 +701,16 @@ function renderLeaderboard() {
 
 // ---- Screen transition ----
 function goToScreen(screen) {
+  // Reset progression if player navigates away from the run entirely
+  if (screen === SCREENS.LIST_SELECT || screen === SCREENS.TITLE || screen === SCREENS.PLAYER_SELECT) {
+    currentRound = 1;
+    activeModifier = null;
+    _originalDirection = '';
+  }
   currentScreen = screen;
+  if (touchControls) {
+    touchControls.classList.toggle('hidden', screen !== SCREENS.PLAYING || !isTouchDevice());
+  }
   renderCurrentScreen();
 }
 

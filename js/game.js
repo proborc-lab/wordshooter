@@ -1,6 +1,6 @@
 import { Level } from './level.js';
 import { Player } from './player.js';
-import { WordBox, BonusBox, Monster, BatMonster, SnakeMonster, Projectile, Turret, Medkit, Mine, Boss, SpellingBox } from './entities.js';
+import { WordBox, BonusBox, Monster, BatMonster, SnakeMonster, Projectile, Turret, Medkit, Mine, Boss, SpellingBox, BossKey } from './entities.js';
 import { shuffle, generateMisspellings } from './words.js';
 import { drawHUD, drawRedOverlay, drawBossHUD } from './ui.js';
 
@@ -13,7 +13,7 @@ const UPGRADES = [
 ];
 
 export class Game {
-  constructor(canvas, wordList, direction, playerName, audio, leaderboard, speed = 'normal', lang1 = 'A', lang2 = 'B', listName = 'unknown', onGameOver = null) {
+  constructor(canvas, wordList, direction, playerName, audio, leaderboard, speed = 'normal', lang1 = 'A', lang2 = 'B', listName = 'unknown', onGameOver = null, modifier = null, round = 1) {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.direction = direction; // 'a-to-b' or 'b-to-a'
@@ -57,6 +57,7 @@ export class Game {
     this.victory = false;
     this.keys = {};
     this.mouseDown = false;
+    this.touchShootHeld = false;
     this.repeatQueue = [];
     this.upgradeText = null;
     this.upgradeTimer = 0;
@@ -71,12 +72,28 @@ export class Game {
     this.respawnPauseTimer = 0;
     this.boss = null;
     this.spellingBoxes = [];
+    this.bossKey = null;
     this.startDelay = 2;
     this.knifeTimer = 0;
     this.lastTime = null;
     this.animId = null;
     this._listName = listName;
     this._onGameOver = onGameOver;
+    this.modifier = modifier;
+    this.round = round;
+    this.noPeekTimer = 0;
+
+    // Apply modifier effects that need to be set up once at game start
+    if (this.modifier === 'lowGravity') {
+      this.player.gravityMult = 0.78;
+      this.player.jumpMult = 1.22;
+    }
+
+    // Rounds 3 & 4 — industrial world (reversed direction runs)
+    if (round >= 3) {
+      this.level.theme = 'industrial';
+      this.player.tinted = true;
+    }
 
     // Player sound hooks
     this.player._onJump = () => this.audio.playJump();
@@ -167,6 +184,31 @@ export class Game {
     // Place on platforms ahead of camera
     const placeFrom = this.cameraX + this.canvas.width * 0.5;
     this.level.placeWordBoxes(this.boxes, placeFrom);
+
+    // No-Peek: reset visibility timer
+    this.noPeekTimer = 2.5;
+
+    // Boxes Move: assign oscillating velocity to each word box
+    if (this.modifier === 'boxesMove') {
+      const spd = 40 + Math.random() * 30;
+      for (const box of this.boxes) {
+        if (!(box instanceof BonusBox)) {
+          box.vx = spd * (Math.random() < 0.5 ? 1 : -1);
+          box.bounceLeft  = box.x - 55;
+          box.bounceRight = box.x + 55;
+        }
+      }
+    }
+
+    // Double Trouble: correct box requires 2 hits
+    if (this.modifier === 'doubleTrouble') {
+      for (const box of this.boxes) {
+        if (box.isCorrect) {
+          box.hitsNeeded = 2;
+          box.hitsRemaining = 2;
+        }
+      }
+    }
 
     // Occasionally spawn a bonus box
     if (this.correctCount > 0 && this.correctCount % 7 === 0) {
@@ -356,8 +398,12 @@ export class Game {
       box.y = p.y - box.height - 5;
     }
 
-    // Spawn 2 medkits on the arena floor to give the player a fighting chance
-    const mkPlats = arenaPlats.slice(0, 2);
+    // Spawn 2 medkits on the navigation (non-spelling) platforms so they
+    // don't obscure the spelling boxes
+    const navPlats = this.level.getAllPlatforms()
+      .filter(p => p.decorated && !p.isBossArena)
+      .sort((a, b) => a.x - b.x);
+    const mkPlats = navPlats.slice(0, 2);
     for (const p of mkPlats) {
       this.medkits.push(new Medkit(p.x + p.width / 2 - 9, p.y - 36));
     }
@@ -385,6 +431,7 @@ export class Game {
     if (this.victory) return;
     this.boss = null;
     this.spellingBoxes = [];
+    this.bossKey = null;
     this.respawnPauseTimer = 0;
     this.victory = true;
     this.running = false;
@@ -417,8 +464,8 @@ export class Game {
         this._tryShoot();
       }
 
-      // Knife — Right Shift hits any box in melee reach
-      if (e.code === 'ShiftRight') {
+      // Knife — either Shift key hits any box in melee reach
+      if (e.code === 'ShiftRight' || e.code === 'ShiftLeft') {
         this._tryKnife();
       }
 
@@ -435,10 +482,7 @@ export class Game {
     this._mousedownHandler = (e) => {
       this.mouseDown = true;
       this._tryShoot();
-      // Resume AudioContext on user gesture
-      if (this.audio.ctx && this.audio.ctx.state === 'suspended') {
-        this.audio.ctx.resume();
-      }
+      this._resumeAudio();
     };
 
     this._mouseupHandler = () => {
@@ -449,14 +493,80 @@ export class Game {
     window.addEventListener('keyup', this._keyupHandler);
     this.canvas.addEventListener('mousedown', this._mousedownHandler);
     this.canvas.addEventListener('mouseup', this._mouseupHandler);
+
+    // ---- On-screen touch controls ----
+    // Use AbortController so all listeners are torn down cleanly in destroy().
+    this._touchAbort = new AbortController();
+    const { signal } = this._touchAbort;
+
+    // Helper: hold a key while a button is pressed, release on lift/cancel.
+    const holdKey = (id, key) => {
+      const btn = document.getElementById(id);
+      if (!btn) return;
+      btn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        this.keys[key] = true;
+        this._resumeAudio();
+      }, { signal });
+      btn.addEventListener('pointerup',     () => { this.keys[key] = false; }, { signal });
+      btn.addEventListener('pointercancel', () => { this.keys[key] = false; }, { signal });
+    };
+
+    holdKey('tc-left',  this.modifier === 'mirrorWorld' ? 'ArrowRight' : 'ArrowLeft');
+    holdKey('tc-right', this.modifier === 'mirrorWorld' ? 'ArrowLeft'  : 'ArrowRight');
+    holdKey('tc-jump',  'ArrowUp');
+
+    const shootBtn = document.getElementById('tc-shoot');
+    if (shootBtn) {
+      shootBtn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        this.touchShootHeld = true;
+        this._tryShoot();
+        this._resumeAudio();
+      }, { signal });
+      shootBtn.addEventListener('pointerup',     () => { this.touchShootHeld = false; }, { signal });
+      shootBtn.addEventListener('pointercancel', () => { this.touchShootHeld = false; }, { signal });
+    }
+
+    const knifeBtn = document.getElementById('tc-knife');
+    if (knifeBtn) {
+      knifeBtn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        this._tryKnife();
+      }, { signal });
+    }
+
+    const pauseBtn = document.getElementById('tc-pause');
+    if (pauseBtn) {
+      pauseBtn.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        this.paused = !this.paused;
+      }, { signal });
+    }
+  }
+
+  _resumeAudio() {
+    if (this.audio.ctx && this.audio.ctx.state === 'suspended') {
+      this.audio.ctx.resume();
+    }
+  }
+
+  _fireProjectile() {
+    const proj = this.player.shoot();
+    if (!proj) return;
+    // In Mirror World the canvas is flipped but world coords are not.
+    // For facingRight=false the gun tip maps to player.x-12 in world, which
+    // visually appears 12 px outside the player on the wrong side.
+    // Correct it to player.x-4 (just past the visual gun muzzle).
+    if (this.modifier === 'mirrorWorld' && !this.player.facingRight) {
+      proj.x = this.player.x - 4;
+    }
+    this.projectiles.push(new Projectile(proj.x, proj.y, proj.vx, proj.vy, true));
+    this.audio.playShoot();
   }
 
   _tryShoot() {
-    const proj = this.player.shoot();
-    if (proj) {
-      this.projectiles.push(new Projectile(proj.x, proj.y, proj.vx, proj.vy, true));
-      this.audio.playShoot();
-    }
+    this._fireProjectile();
   }
 
   _tryKnife() {
@@ -609,6 +719,7 @@ export class Game {
     window.removeEventListener('keyup', this._keyupHandler);
     this.canvas.removeEventListener('mousedown', this._mousedownHandler);
     this.canvas.removeEventListener('mouseup', this._mouseupHandler);
+    this._touchAbort?.abort();
     if (this.animId) {
       cancelAnimationFrame(this.animId);
     }
@@ -620,13 +731,9 @@ export class Game {
     // Cap dt to avoid huge jumps
     dt = Math.min(dt, 0.05);
 
-    // Auto-shoot if mouse held
-    if (this.mouseDown) {
-      const proj = this.player.shoot();
-      if (proj) {
-        this.projectiles.push(new Projectile(proj.x, proj.y, proj.vx, proj.vy, true));
-        this.audio.playShoot();
-      }
+    // Auto-shoot if mouse or touch shoot button held
+    if (this.mouseDown || this.touchShootHeld) {
+      this._fireProjectile();
     }
 
     // Camera scrolls automatically — paused at start and briefly after a respawn
@@ -679,7 +786,32 @@ export class Game {
 
     // Update player
     const visiblePlatforms = this.level.getPlatformsInView();
-    this.player.update(dt, visiblePlatforms, this.keys);
+    const effectiveKeys = this.modifier === 'mirrorWorld' ? {
+      ...this.keys,
+      ArrowLeft:  this.keys['ArrowRight'],
+      ArrowRight: this.keys['ArrowLeft'],
+      a: this.keys['d'], A: this.keys['D'],
+      d: this.keys['a'], D: this.keys['A'],
+    } : this.keys;
+    const wasOnGround = this.player.onGround;
+    this.player.update(dt, visiblePlatforms, effectiveKeys);
+
+    // Boost pad — launch player upward and enable pass-through for ~1.1 s
+    if (!wasOnGround && this.player.onGround && this.player.boostTimer <= 0) {
+      for (const p of visiblePlatforms) {
+        if (!p.isBoostPad) continue;
+        if (this.player.x + this.player.width > p.x &&
+            this.player.x < p.x + p.width &&
+            Math.abs(this.player.y + this.player.height - p.y) < 8) {
+          this.player.vy = -1350;
+          this.player.onGround = false;
+          this.player.jumpsLeft = 0;        // no extra jumps during boost
+          this.player.boostTimer = 1.1;
+          this.audio.playJump();
+          break;
+        }
+      }
+    }
 
     // Difficulty scaling and platform decoration
     const newDiff = this.correctCount >= 10 ? 2 : this.correctCount >= 5 ? 1 : 0;
@@ -761,6 +893,16 @@ export class Game {
     // Update boxes
     for (const box of this.boxes) {
       box.update(dt);
+      // Boxes Move modifier: oscillate box x position
+      if (box.vx !== undefined) {
+        box.x += box.vx * dt;
+        if (box.x <= box.bounceLeft || box.x >= box.bounceRight) box.vx = -box.vx;
+      }
+    }
+
+    // No-Peek: count down prompt visibility timer
+    if (this.modifier === 'noPeek' && this.noPeekTimer > 0) {
+      this.noPeekTimer -= dt;
     }
 
     // Update monsters
@@ -791,10 +933,12 @@ export class Game {
       // Update spelling boxes
       for (const sb of this.spellingBoxes) sb.update(dt);
 
-      // Death animation complete → trigger victory
-      if (this.boss.dying && this.boss.deathTimer > 7) {
-        this._triggerVictory();
-        return;
+      // Death animation complete → drop the key
+      if (this.boss.dying && this.boss.deathTimer > 7 && !this.bossKey) {
+        this.bossKey = new BossKey(
+          this.boss.x + this.boss.width / 2 - 11,
+          this.boss.y + this.boss.height / 2
+        );
       }
 
       // Vulnerability timeout → start new round (not if already dying)
@@ -850,6 +994,12 @@ export class Game {
             box.hit(true);
             this._applyBonusReward(box.reward);
           } else if (box.isCorrect) {
+            // Double Trouble: first hit only chips the box
+            if (box.hitsNeeded && box.hitsRemaining > 1) {
+              box.hitsRemaining--;
+              box.hit(false); // shake without destroying
+              break;
+            }
             box.hit(true);
             this.onCorrectHit();
           } else {
@@ -938,6 +1088,19 @@ export class Game {
             }
           }
         }
+      }
+    }
+
+    // Boss key update + player pickup
+    if (this.bossKey && this.bossKey.alive) {
+      this.bossKey.update(dt, this.level.getPlatformsInView());
+      if (this.player.x < this.bossKey.x + this.bossKey.width &&
+          this.player.x + this.player.width > this.bossKey.x &&
+          this.player.y < this.bossKey.y + this.bossKey.height &&
+          this.player.y + this.player.height > this.bossKey.y) {
+        this.bossKey.alive = false;
+        this._triggerVictory();
+        return;
       }
     }
 
@@ -1045,6 +1208,13 @@ export class Game {
 
     ctx.clearRect(0, 0, cw, ch);
 
+    // Mirror World: flip the entire game world horizontally
+    if (this.modifier === 'mirrorWorld') {
+      ctx.save();
+      ctx.translate(cw, 0);
+      ctx.scale(-1, 1);
+    }
+
     // Draw level background and platforms
     this.level.draw(ctx);
 
@@ -1072,9 +1242,14 @@ export class Game {
     for (const t of this.turrets)   t.draw(ctx, this.cameraX);
     for (const mk of this.medkits)  mk.draw(ctx, this.cameraX);
     for (const mine of this.mines)  mine.draw(ctx, this.cameraX);
+    if (this.bossKey)               this.bossKey.draw(ctx, this.cameraX);
 
     // Draw player
     this.player.draw(ctx, this.cameraX);
+
+    if (this.modifier === 'mirrorWorld') {
+      ctx.restore();
+    }
 
     // Knife slash effect
     if (this.knifeTimer > 0) {
@@ -1151,9 +1326,9 @@ export class Game {
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       // Outer glow
-      ctx.shadowColor = '#ffaa00';
-      ctx.shadowBlur = 60;
-      ctx.fillStyle = '#ffdd00';
+      ctx.shadowColor = '#996600';
+      ctx.shadowBlur = 40;
+      ctx.fillStyle = '#ccaa44';
       ctx.font = 'bold 108px monospace';
       ctx.fillText('VICTORY!', 0, -28);
       // Sub-line
@@ -1187,7 +1362,10 @@ export class Game {
       speedBoost: this.player.speedBoost,
       lang1: this.lang1,
       lang2: this.lang2,
-      bossMode: !!this.boss
+      bossMode: !!this.boss,
+      modifier: this.modifier,
+      round: this.round,
+      promptVisible: this.modifier !== 'noPeek' || this.noPeekTimer > 0,
     };
     drawHUD(ctx, hudState);
     if (this.boss) {
@@ -1212,7 +1390,7 @@ export class Game {
         ['← → / A D', 'Move'],
         ['↑ / W / Space', 'Jump  (double jump in air)'],
         ['Z / Ctrl / Click', 'Shoot'],
-        ['Right Shift', 'Knife (melee)'],
+        ['Shift', 'Knife (melee)'],
         ['P / ESC', 'Pause / Resume'],
       ];
       ctx.font = '14px monospace';

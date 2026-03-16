@@ -2,13 +2,35 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Wordshooter</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
   <div id="overlay" class="overlay hidden"></div>
+
+  <!-- On-screen controls — shown only during gameplay on touch devices -->
+  <div id="touch-controls" class="hidden">
+    <!-- Left cluster: jump centred above left+right -->
+    <div id="tc-dpad-group">
+      <div id="tc-jump-row">
+        <button id="tc-jump"  class="tc-btn" aria-label="Jump">&#9650;</button>
+      </div>
+      <div id="tc-lr-row">
+        <button id="tc-left"  class="tc-btn" aria-label="Move left">&#9664;</button>
+        <button id="tc-right" class="tc-btn" aria-label="Move right">&#9654;</button>
+      </div>
+    </div>
+    <!-- Centre: pause (same bottom row as left/right and shoot/knife) -->
+    <button id="tc-pause" class="tc-btn" aria-label="Pause">&#9646;&#9646;</button>
+    <!-- Right cluster: shoot + knife -->
+    <div id="tc-actions">
+      <button id="tc-shoot" class="tc-btn" aria-label="Shoot">&#9679;</button>
+      <button id="tc-knife" class="tc-btn" aria-label="Knife">&#9876;</button>
+    </div>
+  </div>
+
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

@@ -9,6 +9,23 @@
         { "id": "school",    "label": "📚 School",                   "subtitle": "School"      },
         { "id": "newyork",   "label": "🗽 New York",                 "subtitle": "New York"    },
         { "id": "newyork2",  "label": "🎉 New York — Festivities",   "subtitle": "Feestdagen"  }
+      ],
+      "Daily Life": [
+        { "id": "NLEN_DL_animals",   "label": "🐾 Animals",          "subtitle": "Dieren",          "file": "data/NLEN/theme/animals.csv"   },
+        { "id": "NLEN_DL_food",      "label": "🍽 Food",              "subtitle": "Eten",            "file": "data/NLEN/theme/food.csv"      },
+        { "id": "NLEN_DL_fruit",     "label": "🍎 Fruit & Veg",       "subtitle": "Groente & Fruit", "file": "data/NLEN/theme/fruit.csv"     },
+        { "id": "NLEN_DL_drinks",    "label": "🥤 Drinks",            "subtitle": "Dranken",         "file": "data/NLEN/theme/drinks.csv"    },
+        { "id": "NLEN_DL_clothing",  "label": "👕 Clothing",          "subtitle": "Kleding",         "file": "data/NLEN/theme/clothing.csv"  },
+        { "id": "NLEN_DL_house",     "label": "🏠 In the House",      "subtitle": "In Huis",         "file": "data/NLEN/theme/house.csv"     },
+        { "id": "NLEN_DL_kitchen",   "label": "🍳 Kitchen",           "subtitle": "Keuken",          "file": "data/NLEN/theme/kitchen.csv"   },
+        { "id": "NLEN_DL_family",    "label": "👨‍👩‍👧 Family",           "subtitle": "Familie",         "file": "data/NLEN/theme/family.csv"    },
+        { "id": "NLEN_DL_body",      "label": "💪 Body Parts",        "subtitle": "Lichaam",         "file": "data/NLEN/theme/body.csv"      },
+        { "id": "NLEN_DL_weather",   "label": "⛅ Weather",           "subtitle": "Weer",            "file": "data/NLEN/theme/weather.csv"   },
+        { "id": "NLEN_DL_transport", "label": "🚗 Transport",         "subtitle": "Vervoer",         "file": "data/NLEN/theme/transport.csv" },
+        { "id": "NLEN_DL_city",      "label": "🏙 In the City",       "subtitle": "In de Stad",      "file": "data/NLEN/theme/city.csv"      },
+        { "id": "NLEN_DL_nature",    "label": "🌿 Nature",            "subtitle": "Natuur",          "file": "data/NLEN/theme/nature.csv"    },
+        { "id": "NLEN_DL_sports",    "label": "⚽ Sports & Hobbies",  "subtitle": "Sport & Hobby",   "file": "data/NLEN/theme/sports.csv"    },
+        { "id": "NLEN_DL_emotions",  "label": "😊 Emotions",          "subtitle": "Gevoelens",       "file": "data/NLEN/theme/emotions.csv"  }
       ]
     }
   },

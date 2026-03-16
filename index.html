@@ -12,22 +12,22 @@
 
   <!-- On-screen controls — shown only during gameplay on touch devices -->
   <div id="touch-controls" class="hidden">
-    <!-- Left cluster: jump centred above left+right -->
-    <div id="tc-dpad-group">
+    <!-- Left cluster: move left + right only -->
+    <div id="tc-move-group">
+      <button id="tc-left"  class="tc-btn" aria-label="Move left">&#9664;</button>
+      <button id="tc-right" class="tc-btn" aria-label="Move right">&#9654;</button>
+    </div>
+    <!-- Centre: pause -->
+    <button id="tc-pause" class="tc-btn" aria-label="Pause">&#9646;&#9646;</button>
+    <!-- Right cluster: jump above, shoot + knife below -->
+    <div id="tc-action-group">
       <div id="tc-jump-row">
         <button id="tc-jump"  class="tc-btn" aria-label="Jump">&#9650;</button>
       </div>
-      <div id="tc-lr-row">
-        <button id="tc-left"  class="tc-btn" aria-label="Move left">&#9664;</button>
-        <button id="tc-right" class="tc-btn" aria-label="Move right">&#9654;</button>
+      <div id="tc-action-row">
+        <button id="tc-shoot" class="tc-btn" aria-label="Shoot">&#9679;</button>
+        <button id="tc-knife" class="tc-btn" aria-label="Knife">&#9876;</button>
       </div>
-    </div>
-    <!-- Centre: pause (same bottom row as left/right and shoot/knife) -->
-    <button id="tc-pause" class="tc-btn" aria-label="Pause">&#9646;&#9646;</button>
-    <!-- Right cluster: shoot + knife -->
-    <div id="tc-actions">
-      <button id="tc-shoot" class="tc-btn" aria-label="Shoot">&#9679;</button>
-      <button id="tc-knife" class="tc-btn" aria-label="Knife">&#9876;</button>
     </div>
   </div>
 

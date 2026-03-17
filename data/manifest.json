@@ -82,6 +82,23 @@
       "Theme": [
         { "id": "FRNL_Sport", "label": "⚽ Sport", "subtitle": "Sport" }
       ],
+      "Daily Life": [
+        { "id": "NLFR_DL_animals",   "label": "🐾 Animals",          "subtitle": "Animaux",         "file": "data/NLFR/theme/animals.csv"   },
+        { "id": "NLFR_DL_food",      "label": "🍽 Food",              "subtitle": "Nourriture",      "file": "data/NLFR/theme/food.csv"      },
+        { "id": "NLFR_DL_fruit",     "label": "🍎 Fruit & Veg",       "subtitle": "Fruits & Légumes","file": "data/NLFR/theme/fruit.csv"     },
+        { "id": "NLFR_DL_drinks",    "label": "🥤 Drinks",            "subtitle": "Boissons",        "file": "data/NLFR/theme/drinks.csv"    },
+        { "id": "NLFR_DL_clothing",  "label": "👕 Clothing",          "subtitle": "Vêtements",       "file": "data/NLFR/theme/clothing.csv"  },
+        { "id": "NLFR_DL_house",     "label": "🏠 In the House",      "subtitle": "Dans la Maison",  "file": "data/NLFR/theme/house.csv"     },
+        { "id": "NLFR_DL_kitchen",   "label": "🍳 Kitchen",           "subtitle": "Cuisine",         "file": "data/NLFR/theme/kitchen.csv"   },
+        { "id": "NLFR_DL_family",    "label": "👨‍👩‍👧 Family",           "subtitle": "Famille",         "file": "data/NLFR/theme/family.csv"    },
+        { "id": "NLFR_DL_body",      "label": "💪 Body Parts",        "subtitle": "Corps",           "file": "data/NLFR/theme/body.csv"      },
+        { "id": "NLFR_DL_weather",   "label": "⛅ Weather",           "subtitle": "Météo",           "file": "data/NLFR/theme/weather.csv"   },
+        { "id": "NLFR_DL_transport", "label": "🚗 Transport",         "subtitle": "Transport",       "file": "data/NLFR/theme/transport.csv" },
+        { "id": "NLFR_DL_city",      "label": "🏙 In the City",       "subtitle": "En Ville",        "file": "data/NLFR/theme/city.csv"      },
+        { "id": "NLFR_DL_nature",    "label": "🌿 Nature",            "subtitle": "Nature",          "file": "data/NLFR/theme/nature.csv"    },
+        { "id": "NLFR_DL_sports",    "label": "⚽ Sports & Hobbies",  "subtitle": "Sport & Loisirs", "file": "data/NLFR/theme/sports.csv"    },
+        { "id": "NLFR_DL_emotions",  "label": "😊 Emotions",          "subtitle": "Émotions",        "file": "data/NLFR/theme/emotions.csv"  }
+      ],
       "Homework": {
         "Méthode 131E": [
           { "id": "NLFR_131E", "label": "📝 E131 — Week 1", "subtitle": "E 131" }

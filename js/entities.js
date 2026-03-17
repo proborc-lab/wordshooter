@@ -1,7 +1,7 @@
 import { Sprites } from './sprites.js';
 
 export class Projectile {
-  constructor(x, y, vx, vy, fromPlayer) {
+  constructor(x, y, vx, vy, fromPlayer, piercing = false) {
     this.x = x;
     this.y = y;
     this.vx = vx;
@@ -10,6 +10,8 @@ export class Projectile {
     this.width = fromPlayer ? 10 : 8;
     this.height = fromPlayer ? 5 : 4;
     this.alive = true;
+    this.piercing = piercing;
+    this.hitTargets = piercing ? new Set() : null;
   }
 
   update(dt) {
@@ -25,10 +27,10 @@ export class Projectile {
     const sx = this.x - cameraX;
     ctx.save();
     if (this.fromPlayer) {
-      // Yellow tracer
-      ctx.fillStyle = '#ffee00';
-      ctx.shadowColor = '#ffaa00';
-      ctx.shadowBlur = 6;
+      // Cyan for piercing, yellow for normal
+      ctx.fillStyle = this.piercing ? '#00ffcc' : '#ffee00';
+      ctx.shadowColor = this.piercing ? '#00cc88' : '#ffaa00';
+      ctx.shadowBlur = this.piercing ? 10 : 6;
       ctx.fillRect(sx - this.width, this.y - this.height / 2, this.width, this.height);
       // Trail
       ctx.globalAlpha = 0.4;
@@ -169,6 +171,15 @@ export class WordBox {
     ctx.strokeStyle = borderColor;
     ctx.lineWidth = 2;
     ctx.strokeRect(sx, sy, w, h);
+
+    // Box Impostors: real correct box gets a very faint extra border flicker
+    if (this._realFlicker) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(180,220,255,0.28)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(sx - 1, sy - 1, w + 2, h + 2);
+      ctx.restore();
+    }
 
     // Crate wood lines
     if (this.state === 'normal') {
@@ -638,6 +649,102 @@ export class SnakeMonster {
   }
 }
 
+// ── Janitor ───────────────────────────────────────────────────────────────────
+export class Janitor {
+  constructor(x, y) {
+    this.x = x;  this.y = y;
+    this.width = 48;  this.height = 80;
+    this.vx = 80;
+    this.vy = 0;
+    this.onGround = false;
+    this.alive = true;
+    this.stunTimer = 0;
+    this.animTimer = 0;
+    this.mopAngle = 0;
+  }
+
+  update(dt) {
+    this.animTimer += dt;
+    if (this.stunTimer > 0) { this.stunTimer -= dt; return; }
+    this.x += this.vx * dt;
+    this.mopAngle = Math.sin(this.animTimer * 3) * 0.35;
+  }
+
+  stun() { this.stunTimer = 2.0; }
+
+  draw(ctx, cameraX) {
+    const sx = Math.round(this.x - cameraX);
+    const sy = Math.round(this.y);
+    const stunned = this.stunTimer > 0;
+
+    ctx.save();
+
+    // Body
+    ctx.fillStyle = stunned ? '#8888ff' : '#888888';
+    ctx.beginPath();
+    if (ctx.roundRect) {
+      ctx.roundRect(sx + 6, sy + 24, 36, 46, 4);
+    } else {
+      ctx.rect(sx + 6, sy + 24, 36, 46);
+    }
+    ctx.fill();
+
+    // Trousers
+    ctx.fillStyle = '#444466';
+    ctx.fillRect(sx + 6, sy + 54, 36, 16);
+
+    // Head
+    ctx.fillStyle = '#f0c890';
+    ctx.beginPath();
+    ctx.arc(sx + 24, sy + 16, 14, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Eyes
+    ctx.fillStyle = '#333';
+    ctx.beginPath(); ctx.arc(sx + 19, sy + 14, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(sx + 29, sy + 14, 2.5, 0, Math.PI * 2); ctx.fill();
+
+    // Mop handle
+    ctx.save();
+    ctx.translate(sx + 36, sy + 44);
+    ctx.rotate(-0.8 + this.mopAngle);
+    ctx.strokeStyle = '#8b5e2a';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, 60);
+    ctx.stroke();
+    // Mop head fan
+    ctx.strokeStyle = '#c8c8c8';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 7; i++) {
+      const angle = -0.5 + (i / 6) * 1.0;
+      ctx.beginPath();
+      ctx.moveTo(0, 60);
+      ctx.lineTo(Math.sin(angle) * 14, 60 + Math.cos(angle) * 10);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Stun stars
+    if (stunned) {
+      const t = this.animTimer * 4;
+      for (let i = 0; i < 3; i++) {
+        const angle = t + (i * Math.PI * 2) / 3;
+        const starX = sx + 24 + Math.cos(angle) * 20;
+        const starY = sy + 2 + Math.sin(angle) * 8;
+        ctx.fillStyle = '#ffdd00';
+        ctx.font = 'bold 14px monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('★', starX, starY);
+      }
+    }
+
+    ctx.restore();
+  }
+}
+
 // ── Turret ────────────────────────────────────────────────────────────────────
 export class Turret {
   constructor(x, y) {
@@ -721,7 +828,7 @@ export class Medkit {
   constructor(x, y) {
     this.x = x;
     this.y = y;
-    this.width = 18;
+    this.width = 28;
     this.height = 18;
     this.alive = true;
     this.bobTimer = Math.random() * Math.PI * 2;
@@ -735,14 +842,37 @@ export class Medkit {
     if (!this.alive) return;
     const sx = Math.round(this.x - cameraX);
     const sy = Math.round(this.y + Math.sin(this.bobTimer) * 3);
+    const w = 28, h = 18;
+
+    // Handle
+    const hx = sx + w / 2 - 5;
+    ctx.strokeStyle = '#ff6666';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.roundRect(hx, sy - 5, 10, 6, 2);
+    ctx.stroke();
+
+    // Body
     ctx.fillStyle = '#cc1111';
-    ctx.fillRect(sx, sy, 18, 18);
+    ctx.beginPath();
+    ctx.roundRect(sx, sy, w, h, 2);
+    ctx.fill();
     ctx.strokeStyle = '#ff4444';
     ctx.lineWidth = 1;
-    ctx.strokeRect(sx, sy, 18, 18);
+    ctx.stroke();
+
+    // Clasp line across middle
+    ctx.strokeStyle = 'rgba(255,180,180,0.45)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(sx + 2, sy + h / 2);
+    ctx.lineTo(sx + w - 2, sy + h / 2);
+    ctx.stroke();
+
+    // White cross
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(sx + 7, sy + 3, 4, 12);
-    ctx.fillRect(sx + 3, sy + 7, 12, 4);
+    ctx.fillRect(sx + 12, sy + 3, 4, 12);
+    ctx.fillRect(sx + 7,  sy + 7, 14, 4);
   }
 }
 
@@ -1563,5 +1693,147 @@ export class BossKey {
       ctx.fillText('PICK UP', cx, sy - 6);
       ctx.shadowBlur = 0;
     }
+  }
+}
+
+// ── PowerPickup ───────────────────────────────────────────────────────────────
+export class PowerPickup {
+  constructor(x, y, type) {
+    this.x = x;
+    this.y = y;
+    this.type = type; // 'flask' | 'diamond'
+    this.width  = type === 'flask' ? 20 : 22;
+    this.height = type === 'flask' ? 30 : 22;
+    this.alive = true;
+    this.bobTimer = Math.random() * Math.PI * 2;
+  }
+
+  update(dt) {
+    this.bobTimer += dt * 2;
+  }
+
+  draw(ctx, cameraX) {
+    if (!this.alive) return;
+    const sx = Math.round(this.x - cameraX);
+    const sy = Math.round(this.y + Math.sin(this.bobTimer) * 4);
+    if (this.type === 'flask') {
+      this._drawFlask(ctx, sx, sy);
+    } else {
+      this._drawDiamond(ctx, sx, sy);
+    }
+  }
+
+  _drawFlask(ctx, sx, sy) {
+    ctx.save();
+    ctx.shadowColor = '#cc44ff';
+    ctx.shadowBlur = 14;
+
+    const neckW = 6, neckH = 10, bodyW = 20, bodyH = 20;
+    const neckX = sx + bodyW / 2 - neckW / 2;
+    const bodyY = sy + neckH;
+
+    // Body (trapezoid: shoulders slope out from neck base)
+    ctx.fillStyle = '#551177';
+    ctx.beginPath();
+    ctx.moveTo(neckX - 1,          bodyY);           // top-left shoulder
+    ctx.lineTo(neckX + neckW + 1,  bodyY);           // top-right shoulder
+    ctx.lineTo(sx + bodyW,         bodyY + bodyH);   // bottom-right
+    ctx.lineTo(sx,                 bodyY + bodyH);   // bottom-left
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = '#cc66ff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Liquid fill (bottom 55% of body, slightly inset)
+    const liqTop = bodyY + bodyH * 0.45;
+    const liqT   = (liqTop - bodyY) / bodyH;          // fraction down the body
+    const liqL   = sx     + (bodyW * liqT * 0.4);
+    const liqR   = sx + bodyW - (bodyW * liqT * 0.4);
+    ctx.fillStyle = 'rgba(200,80,255,0.55)';
+    ctx.beginPath();
+    ctx.moveTo(liqL, liqTop);
+    ctx.lineTo(liqR, liqTop);
+    ctx.lineTo(sx + bodyW - 1, bodyY + bodyH - 1);
+    ctx.lineTo(sx + 1,         bodyY + bodyH - 1);
+    ctx.closePath();
+    ctx.fill();
+
+    // Neck
+    ctx.fillStyle = '#551177';
+    ctx.fillRect(neckX, sy, neckW, neckH + 1);
+    ctx.strokeStyle = '#cc66ff';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(neckX, sy, neckW, neckH);
+
+    // Rim (stopper at top of neck)
+    ctx.fillStyle = '#dd88ff';
+    ctx.fillRect(neckX - 2, sy, neckW + 4, 3);
+
+    // Bubbles
+    ctx.fillStyle = 'rgba(255,200,255,0.75)';
+    ctx.beginPath();
+    ctx.arc(sx + bodyW / 2 - 3, bodyY + bodyH - 6, 2,   0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(sx + bodyW / 2 + 4, bodyY + bodyH - 11, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  _drawDiamond(ctx, sx, sy) {
+    const w = 22, h = 22;
+    const cx = sx + w / 2;
+    const cy = sy + h / 2;
+
+    ctx.save();
+    ctx.shadowColor = '#00ff88';
+    ctx.shadowBlur = 16;
+
+    // Main gem shape
+    ctx.fillStyle = '#00bb44';
+    ctx.beginPath();
+    ctx.moveTo(cx,      sy);       // top
+    ctx.lineTo(sx + w,  cy);       // right
+    ctx.lineTo(cx,      sy + h);   // bottom
+    ctx.lineTo(sx,      cy);       // left
+    ctx.closePath();
+    ctx.fill();
+
+    // Top facet highlight
+    ctx.fillStyle = '#88ffcc';
+    ctx.beginPath();
+    ctx.moveTo(cx,      sy + 4);
+    ctx.lineTo(sx + w - 4, cy);
+    ctx.lineTo(cx,      cy - 2);
+    ctx.lineTo(sx + 4,  cy);
+    ctx.closePath();
+    ctx.fill();
+
+    // Border
+    ctx.strokeStyle = '#00ff88';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(cx,      sy);
+    ctx.lineTo(sx + w,  cy);
+    ctx.lineTo(cx,      sy + h);
+    ctx.lineTo(sx,      cy);
+    ctx.closePath();
+    ctx.stroke();
+
+    // Orbiting sparkles
+    const t = Date.now() / 500;
+    for (let i = 0; i < 3; i++) {
+      const angle = t + (i * Math.PI * 2 / 3);
+      const r = 15 + Math.sin(t * 2 + i) * 2;
+      const px = cx + Math.cos(angle) * r;
+      const py = cy + Math.sin(angle) * r;
+      ctx.globalAlpha = 0.5 + Math.sin(t * 3 + i) * 0.4;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(px - 1.5, py - 1.5, 3, 3);
+    }
+
+    ctx.restore();
   }
 }

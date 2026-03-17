@@ -32,10 +32,13 @@ export class Player {
     this.jumpMult = 1.0;     // modifier hook (e.g. lowGravity sets to 1.55)
     this.tinted = false;     // true in industrial rounds (3 & 4) — copper tint
     this.boostTimer = 0;     // > 0 → ignore platform collision (boss boost pad)
+    this.powerInvincibleTimer = 0; // > 0 → immune to all damage (flask power-up)
+    this.piercingShotTimer = 0;    // > 0 → bullets pass through everything (diamond power-up)
+    this.floatTimer = 0;           // > 0 → reduced gravity (flask power-up, no-lowGravity rounds only)
   }
 
   update(dt, platforms, keys) {
-    const gravity = 1200 * this.gravityMult;
+    const gravity = 1200 * (this.floatTimer > 0 ? 0.28 : this.gravityMult);
     const maxFall = 800;
     const moveSpeed = this.speedBoost ? 420 : 280;
     const jumpVel = -650 * this.jumpMult;
@@ -153,6 +156,11 @@ export class Player {
     if (this.invincibleTimer > 0) {
       this.invincibleTimer -= dt;
     }
+
+    // Power-up timers
+    if (this.powerInvincibleTimer > 0) this.powerInvincibleTimer -= dt;
+    if (this.piercingShotTimer    > 0) this.piercingShotTimer    -= dt;
+    if (this.floatTimer           > 0) this.floatTimer           -= dt;
   }
 
   _collidesPlatform(p) {
@@ -183,7 +191,7 @@ export class Player {
   }
 
   takeDamage() {
-    if (this.shield || this.invincibleTimer > 0) return false;
+    if (this.shield || this.invincibleTimer > 0 || this.powerInvincibleTimer > 0) return false;
     this.health--;
     this.invincibleTimer = 1.2;
     return true;
@@ -234,6 +242,35 @@ export class Player {
       ctx.restore();
     } else {
       Sprites.draw(ctx, spriteName, x, y, { frame, scale: 2 });
+    }
+
+    // Power invincibility aura — gold pulsing ring
+    if (this.powerInvincibleTimer > 0) {
+      const pulse = 0.45 + Math.sin(Date.now() / 90) * 0.25;
+      ctx.save();
+      ctx.globalAlpha = pulse;
+      ctx.strokeStyle = '#ffdd00';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#ffaa00';
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.roundRect(x - 5, y - 5, w + 10, h + 10, 7);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Piercing shot aura — green outer glow
+    if (this.piercingShotTimer > 0) {
+      ctx.save();
+      ctx.globalAlpha = 0.35;
+      ctx.strokeStyle = '#00ff88';
+      ctx.lineWidth = 2;
+      ctx.shadowColor = '#00cc44';
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.roundRect(x - 3, y - 3, w + 6, h + 6, 4);
+      ctx.stroke();
+      ctx.restore();
     }
 
     // Shield glow (kept as a visual effect over the sprite)

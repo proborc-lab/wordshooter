@@ -117,6 +117,26 @@ export function drawHUD(ctx, gameState) {
     ctx.fillText('SPEED', heartsX + offsetX, heartsY + heartSize + 10);
   }
 
+  // Power invincibility indicator
+  if (gameState.powerInvincible) {
+    ctx.fillStyle = '#ffdd00';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    const offX = (gameState.shield ? 60 : 0) + (gameState.rapidFire ? 60 : 0) + (gameState.speedBoost ? 60 : 0);
+    ctx.fillText(gameState.floatActive ? 'INVINCIBLE+FLOAT' : 'INVINCIBLE', heartsX + offX, heartsY + heartSize + 10);
+  }
+
+  // Piercing shot indicator
+  if (gameState.piercingShot) {
+    ctx.fillStyle = '#00ff88';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    const offX = (gameState.shield ? 60 : 0) + (gameState.rapidFire ? 60 : 0) + (gameState.speedBoost ? 60 : 0) + (gameState.powerInvincible ? 110 : 0);
+    ctx.fillText('PIERCE', heartsX + offX, heartsY + heartSize + 10);
+  }
+
   // === Score (top-right) ===
   ctx.fillStyle = '#a0e080';
   ctx.font = 'bold 20px monospace';
@@ -170,11 +190,16 @@ export function drawHUD(ctx, gameState) {
 
   if (gameState.modifier) {
     const modifierLabels = {
-      boxesMove:    '⇄ BOXES MOVE',
-      mirrorWorld:  '↔ MIRROR WORLD',
-      doubleTrouble:'✦ DOUBLE TROUBLE',
-      noPeek:       '👁 NO-PEEK',
-      lowGravity:   '↑ LOW GRAVITY',
+      boxesMove:         '⇄ BOXES MOVE',
+      mirrorWorld:       '↔ MIRROR WORLD',
+      doubleTrouble:     '✦ DOUBLE TROUBLE',
+      noPeek:            '👁 NO-PEEK',
+      lowGravity:        '↑ LOW GRAVITY',
+      blackout:          '🌑 BLACKOUT',
+      boxImpostors:      '🎭 IMPOSTORS',
+      janitor:           '🧹 JANITOR',
+      lightningCrashes:  '⚡ LIGHTNING',
+      wanderingMonsters: '👾 WANDERERS',
     };
     const label = modifierLabels[gameState.modifier] || gameState.modifier.toUpperCase();
     ctx.fillStyle = '#ff88ff';
@@ -245,6 +270,39 @@ export function drawHUD(ctx, gameState) {
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 18px monospace';
     ctx.fillText(gameState.upgradeText, cw / 2, by + 36);
+
+    ctx.restore();
+  }
+
+  // === Power-up pickup banner ===
+  if (gameState.powerupText && gameState.powerupTimer > 0) {
+    const alpha = Math.min(1, gameState.powerupTimer * 2);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    const bw = 340;
+    const bh = 50;
+    const bx = (cw - bw) / 2;
+    const by = ch / 2 - 140;
+
+    const isDiamond = gameState.powerupText.includes('PIERCE');
+    const accentCol = isDiamond ? '#00ff88' : '#ffdd00';
+
+    ctx.fillStyle = 'rgba(0,0,0,0.85)';
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.strokeStyle = accentCol;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(bx, by, bw, bh);
+
+    ctx.fillStyle = accentCol;
+    ctx.font = 'bold 11px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('POWER-UP!', cw / 2, by + 14);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 16px monospace';
+    ctx.fillText(gameState.powerupText, cw / 2, by + 36);
 
     ctx.restore();
   }

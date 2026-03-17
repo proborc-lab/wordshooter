@@ -1,6 +1,6 @@
 import { Level } from './level.js';
 import { Player } from './player.js';
-import { WordBox, BonusBox, Monster, BatMonster, SnakeMonster, Projectile, Turret, Medkit, Mine, Boss, SpellingBox, BossKey } from './entities.js';
+import { WordBox, BonusBox, Monster, BatMonster, SnakeMonster, Janitor, Projectile, Turret, Medkit, Mine, Boss, SpellingBox, BossKey, PowerPickup } from './entities.js';
 import { shuffle, generateMisspellings } from './words.js';
 import { drawHUD, drawRedOverlay, drawBossHUD } from './ui.js';
 
@@ -69,6 +69,10 @@ export class Game {
     this.turrets = [];
     this.medkits = [];
     this.mines = [];
+    this.powerPickups = [];
+    this._powerSpawnDone = false;
+    this.powerupText = null;
+    this.powerupTimer = 0;
     this.respawnPauseTimer = 0;
     this.boss = null;
     this.spellingBoxes = [];
@@ -82,6 +86,22 @@ export class Game {
     this.modifier = modifier;
     this.round = round;
     this.noPeekTimer = 0;
+    // Blackout
+    this.blackoutCycle = 0;
+    this.blackoutDark  = false;
+    this.blackoutFlash = 0;
+    // Box Impostors
+    this._impostorFlicker = 0;
+    // Janitor
+    this.janitor = null;
+    this.janitorSpawnTimer = 20;
+    // Lightning
+    this.lightningPhase = 'idle';
+    this.lightningTimer = 12 + Math.random() * 6;
+    this.lightningWarningPlatform = null;
+    this.lightningStrikeTimer = 0;
+    // Wandering Monsters
+    this.wanderSpawnTimer = 8 + Math.random() * 4;
 
     // Apply modifier effects that need to be set up once at game start
     if (this.modifier === 'lowGravity') {
@@ -200,13 +220,25 @@ export class Game {
       }
     }
 
-    // Double Trouble: correct box requires 2 hits
+    // Double Trouble: correct box requires 2 hits; all boxes show 2 pips so
+    // the correct one isn't identifiable by the indicator alone
     if (this.modifier === 'doubleTrouble') {
       for (const box of this.boxes) {
-        if (box.isCorrect) {
-          box.hitsNeeded = 2;
-          box.hitsRemaining = 2;
-        }
+        box.hitsNeeded = 2;
+        box.hitsRemaining = 2;  // wrong boxes still die in 1 hit — see collision code
+      }
+    }
+
+    // Box Impostors: one wrong box steals the correct answer's text
+    if (this.modifier === 'boxImpostors') {
+      for (const box of this.boxes) { box.isImpostor = false; box.isReal = false; }
+      const correct = this.boxes.find(b => b.isCorrect);
+      const wrongs  = this.boxes.filter(b => !b.isCorrect && !(b instanceof BonusBox));
+      if (correct && wrongs.length > 0) {
+        const imp = wrongs[Math.floor(Math.random() * wrongs.length)];
+        imp.isImpostor = true;
+        imp.word       = correct.word;
+        correct.isReal = true;
       }
     }
 
@@ -243,6 +275,19 @@ export class Game {
 
     this.correctCount++;
     this.audio.playCorrect();
+
+    // Power pickup spawn (rounds 2–4 only, once per round)
+    if (!this._powerSpawnDone && this.round >= 2) {
+      const ideal = this.round === 2 ? 15 : this.round === 3 ? 10 : 12;
+      const threshold = Math.min(ideal, Math.max(1, this.totalWords - 1));
+      if (this.correctCount >= threshold) {
+        const type = this.round === 2 ? 'diamond'
+                   : this.round === 3 ? 'flask'
+                   : Math.random() < 0.5 ? 'diamond' : 'flask';
+        this._powerSpawnDone = true;  // set before spawn to prevent re-entry
+        this._spawnPowerPickup(type);
+      }
+    }
 
     // Streak milestones
     if (this.combo === 10 || this.combo === 20 || this.combo === 30) {
@@ -405,7 +450,7 @@ export class Game {
       .sort((a, b) => a.x - b.x);
     const mkPlats = navPlats.slice(0, 2);
     for (const p of mkPlats) {
-      this.medkits.push(new Medkit(p.x + p.width / 2 - 9, p.y - 36));
+      this.medkits.push(new Medkit(p.x + p.width / 2 - 14 + (Math.random() - 0.5) * (p.width * 0.5), p.y - 36));
     }
   }
 
@@ -561,7 +606,8 @@ export class Game {
     if (this.modifier === 'mirrorWorld' && !this.player.facingRight) {
       proj.x = this.player.x - 4;
     }
-    this.projectiles.push(new Projectile(proj.x, proj.y, proj.vx, proj.vy, true));
+    const piercing = this.player.piercingShotTimer > 0;
+    this.projectiles.push(new Projectile(proj.x, proj.y, proj.vx, proj.vy, true, piercing));
     this.audio.playShoot();
   }
 
@@ -659,6 +705,14 @@ export class Game {
         return;
       }
     }
+
+    // Janitor — knife hit stuns
+    if (this.modifier === 'janitor' && this.janitor && this.janitor.alive) {
+      if (inReach(this.janitor.x + 24, this.janitor.y + 40)) {
+        this.janitor.stun();
+        return;
+      }
+    }
   }
 
   _respawnPlayer() {
@@ -705,7 +759,7 @@ export class Game {
         this.turrets.push(new Turret(p.x + p.width - 28, p.y - 18));
       } else if (r < 0.22) {
         // Medkit hovering above platform centre
-        this.medkits.push(new Medkit(p.x + p.width / 2 - 9, p.y - 26));
+        this.medkits.push(new Medkit(p.x + p.width / 2 - 14 + (Math.random() - 0.5) * (p.width * 0.5), p.y - 26));
       } else if (r < 0.34) {
         // Mine sitting flush on platform surface
         const mx = p.x + 12 + Math.random() * Math.max(0, p.width - 28);
@@ -905,6 +959,151 @@ export class Game {
       this.noPeekTimer -= dt;
     }
 
+    // Blackout
+    if (this.modifier === 'blackout') {
+      this.blackoutCycle = (this.blackoutCycle + dt) % 11;
+      this.blackoutFlash = (this.blackoutCycle >= 7.5 && this.blackoutCycle < 8.0)
+        ? (8.0 - this.blackoutCycle) / 0.5 : 0;
+      this.blackoutDark = this.blackoutCycle >= 8.0;
+    }
+
+    // Box Impostors flicker
+    if (this.modifier === 'boxImpostors') {
+      this._impostorFlicker += dt;
+      for (const box of this.boxes) {
+        if (box.isReal) box._realFlicker = Math.floor(this._impostorFlicker / 0.15) % 2 === 0;
+      }
+    }
+
+    // Janitor (gate: !this.boss)
+    if (this.modifier === 'janitor' && !this.boss) {
+      if (!this.janitor || !this.janitor.alive) {
+        this.janitorSpawnTimer -= dt;
+        if (this.janitorSpawnTimer <= 0) {
+          this.janitorSpawnTimer = 20;
+          this.janitor = new Janitor(this.cameraX + 60, this.level.groundY - 80);
+          this.janitor.vx = this.level.scrollSpeed + 60;
+        }
+      }
+      if (this.janitor && this.janitor.alive) {
+        this.janitor.update(dt);
+
+        // Gravity
+        this.janitor.vy += 900 * dt;
+        this.janitor.y  += this.janitor.vy * dt;
+
+        // Ground collision
+        this.janitor.onGround = false;
+        if (this.janitor.y + this.janitor.height >= this.level.groundY) {
+          this.janitor.y = this.level.groundY - this.janitor.height;
+          this.janitor.vy = 0;
+          this.janitor.onGround = true;
+        }
+
+        // Platform collision (top surface only, while falling)
+        if (!this.janitor.onGround && this.janitor.vy >= 0) {
+          for (const p of this.level.getPlatformsInView()) {
+            if (p.isGround) continue;
+            if (this.janitor.x + this.janitor.width > p.x &&
+                this.janitor.x < p.x + p.width &&
+                this.janitor.y + this.janitor.height >= p.y &&
+                this.janitor.y < p.y) {
+              this.janitor.y = p.y - this.janitor.height;
+              this.janitor.vy = 0;
+              this.janitor.onGround = true;
+              break;
+            }
+          }
+        }
+
+        // Jump toward any wrong box that is above and ahead
+        if (this.janitor.onGround && this.janitor.stunTimer <= 0) {
+          const target = this.boxes.find(b =>
+            b.alive && b.state === 'normal' && !b.isCorrect && !(b instanceof BonusBox) &&
+            b.x + b.width > this.janitor.x &&
+            b.x < this.janitor.x + 300 &&
+            b.y + b.height < this.janitor.y - 20
+          );
+          if (target) {
+            this.janitor.vy = -700;
+            this.janitor.onGround = false;
+          }
+        }
+
+        // Cull once off the right edge
+        if (this.janitor.x > this.cameraX + this.canvas.width + 100) this.janitor.alive = false;
+
+        // Sweep wrong boxes on contact
+        if (this.janitor.stunTimer <= 0) {
+          for (const box of this.boxes) {
+            if (!box.alive || box.state !== 'normal') continue;
+            if (box.isCorrect || box instanceof BonusBox) continue;
+            if (this.janitor.x < box.x + box.width &&
+                this.janitor.x + this.janitor.width > box.x &&
+                this.janitor.y < box.y + box.height &&
+                this.janitor.y + this.janitor.height > box.y) {
+              box.state = 'destroyed'; box.alive = false;
+            }
+          }
+        }
+      }
+    }
+
+    // Lightning Crashes
+    if (this.modifier === 'lightningCrashes') {
+      if (this.lightningPhase === 'idle') {
+        this.lightningTimer -= dt;
+        if (this.lightningTimer <= 0) {
+          const cands = this.level.getPlatformsInView().filter(p => !p.isGround && !p.isBossArena);
+          if (cands.length) {
+            this.lightningWarningPlatform = cands[Math.floor(Math.random() * cands.length)];
+            this.lightningPhase = 'warning';
+            this.lightningTimer = 1.5;
+          } else { this.lightningTimer = 12 + Math.random() * 6; }
+        }
+      } else if (this.lightningPhase === 'warning') {
+        this.lightningTimer -= dt;
+        if (this.lightningTimer <= 0) {
+          this.lightningPhase = 'strike';
+          this.lightningStrikeTimer = 0.5;
+          const p = this.lightningWarningPlatform;
+          if (p) {
+            const onPlat = this.player.x + this.player.width > p.x &&
+                           this.player.x < p.x + p.width &&
+                           Math.abs(this.player.y + this.player.height - p.y) < 10;
+            if (onPlat) { this.player.vy = -700; this.player.onGround = false; }
+          }
+        }
+      } else if (this.lightningPhase === 'strike') {
+        this.lightningStrikeTimer -= dt;
+        if (this.lightningStrikeTimer <= 0) {
+          this.lightningPhase = 'idle';
+          this.lightningWarningPlatform = null;
+          this.lightningTimer = 12 + Math.random() * 6;
+        }
+      }
+    }
+
+    // Wandering Monsters (gate: !this.boss)
+    if (this.modifier === 'wanderingMonsters' && !this.boss) {
+      this.wanderSpawnTimer -= dt;
+      if (this.wanderSpawnTimer <= 0) {
+        const spawnX = this.cameraX + this.canvas.width + 60;
+        const farPlats = this.level.getPlatformsInView()
+          .filter(p => !p.isGround && Math.abs(p.y - this.player.y) > 200);
+        const spawnY = farPlats.length
+          ? farPlats[Math.floor(Math.random() * farPlats.length)].y - 50
+          : this.canvas.height - 140;
+        const roll = Math.random();
+        this.monsters.push(roll < 0.34
+          ? new Monster(spawnX, spawnY, null)
+          : roll < 0.67
+            ? new BatMonster(spawnX, spawnY)
+            : new SnakeMonster(spawnX, spawnY));
+        this.wanderSpawnTimer = 8 + Math.random() * 4;
+      }
+    }
+
     // Update monsters
     const newProjectiles = [];
     for (const monster of this.monsters) {
@@ -979,6 +1178,12 @@ export class Game {
       }
     }
 
+    // Power-up banner timer
+    if (this.powerupTimer > 0) this.powerupTimer -= dt;
+
+    // Update power pickups
+    for (const pp of this.powerPickups) pp.update(dt);
+
     // === Collision detection ===
 
     // Player projectiles vs world (single pass: boxes → monsters → turrets)
@@ -988,8 +1193,10 @@ export class Game {
       // vs WordBox / BonusBox
       for (const box of this.boxes) {
         if (!box.alive || box.state !== 'normal') continue;
+        if (proj.hitTargets && proj.hitTargets.has(box)) continue;
         if (box.checkCollision(proj)) {
-          proj.alive = false;
+          if (!proj.piercing) proj.alive = false;
+          else proj.hitTargets.add(box);
           if (box instanceof BonusBox) {
             box.hit(true);
             this._applyBonusReward(box.reward);
@@ -997,8 +1204,8 @@ export class Game {
             // Double Trouble: first hit only chips the box
             if (box.hitsNeeded && box.hitsRemaining > 1) {
               box.hitsRemaining--;
-              box.hit(false); // shake without destroying
-              break;
+              box.hit(false);
+              if (!proj.piercing) break; else continue;
             }
             box.hit(true);
             this.onCorrectHit();
@@ -1006,7 +1213,7 @@ export class Game {
             box.hit(false);
             this.onWrongHit(box);
           }
-          break;
+          if (!proj.piercing) break;
         }
       }
       if (!proj.alive) continue;
@@ -1014,14 +1221,16 @@ export class Game {
       // vs Monster
       for (const monster of this.monsters) {
         if (!monster.alive) continue;
+        if (proj.hitTargets && proj.hitTargets.has(monster)) continue;
         if (proj.x < monster.x + monster.width &&
             proj.x + proj.width > monster.x &&
             proj.y < monster.y + monster.height &&
             proj.y + proj.height > monster.y) {
-          proj.alive = false;
+          if (!proj.piercing) proj.alive = false;
+          else proj.hitTargets.add(monster);
           monster.takeDamage();
           if (!monster.alive) this.score += 50;
-          break;
+          if (!proj.piercing) break;
         }
       }
       if (!proj.alive) continue;
@@ -1029,11 +1238,13 @@ export class Game {
       // vs Turret
       for (const t of this.turrets) {
         if (!t.alive) continue;
+        if (proj.hitTargets && proj.hitTargets.has(t)) continue;
         if (proj.x < t.x + t.width && proj.x + proj.width > t.x &&
             proj.y < t.y + t.height && proj.y + proj.height > t.y) {
-          proj.alive = false;
+          if (!proj.piercing) proj.alive = false;
+          else proj.hitTargets.add(t);
           if (t.takeDamage()) this.score += 75;
-          break;
+          if (!proj.piercing) break;
         }
       }
     }
@@ -1046,8 +1257,10 @@ export class Game {
         // vs SpellingBox
         for (const sb of this.spellingBoxes) {
           if (!sb.alive || sb.state !== 'normal') continue;
+          if (proj.hitTargets && proj.hitTargets.has(sb)) continue;
           if (sb.checkCollision(proj)) {
-            proj.alive = false;
+            if (!proj.piercing) proj.alive = false;
+            else proj.hitTargets.add(sb);
             if (sb.isCorrect) {
               sb.hit(true);
               this.boss.immune = false;
@@ -1070,18 +1283,20 @@ export class Game {
                 if (this.player.health <= 0) { this._triggerGameOver(); return; }
               }
             }
-            break;
+            if (!proj.piercing) break;
           }
         }
         if (!proj.alive) continue;
 
         // vs Boss body (only when vulnerable)
         if (!this.boss.immune && this.boss.alive) {
+          if (proj.hitTargets && proj.hitTargets.has(this.boss)) continue;
           if (proj.x < this.boss.x + this.boss.width &&
               proj.x + proj.width > this.boss.x &&
               proj.y < this.boss.y + this.boss.height &&
               proj.y + proj.height > this.boss.y) {
-            proj.alive = false;
+            if (!proj.piercing) proj.alive = false;
+            else proj.hitTargets.add(this.boss);
             if (this.boss.takeDamage()) {
               this.spellingBoxes = [];
               this.audio.playBossDeath();
@@ -1112,6 +1327,16 @@ export class Game {
         mk.alive = false;
         this.player.health = Math.min(this.player.maxHealth, this.player.health + 0.5);
         this.audio.playCorrect();
+      }
+    }
+
+    // Player vs PowerPickup
+    for (const pp of this.powerPickups) {
+      if (!pp.alive) continue;
+      if (this.player.x < pp.x + pp.width && this.player.x + this.player.width > pp.x &&
+          this.player.y < pp.y + pp.height && this.player.y + this.player.height > pp.y) {
+        pp.alive = false;
+        this._applyPowerPickup(pp.type);
       }
     }
 
@@ -1173,6 +1398,7 @@ export class Game {
     this.boxes = this.boxes.filter(b => b.alive || b.particles.length > 0);
     this.turrets = this.turrets.filter(t => t.alive);
     this.medkits = this.medkits.filter(mk => mk.alive);
+    this.powerPickups = this.powerPickups.filter(pp => pp.alive);
     this.mines = this.mines.filter(mine => mine.alive);
     this.spellingBoxes = this.spellingBoxes.filter(b => b.alive || b.particles.length > 0);
   }
@@ -1199,6 +1425,35 @@ export class Game {
       this.upgradeText = 'SHIELD ACTIVE';
     }
     this.upgradeTimer = 2.5;
+  }
+
+  _spawnPowerPickup(type) {
+    const targetX = this.cameraX + this.canvas.width * 0.6;
+    const candidates = this.level.getAllPlatforms()
+      .filter(p => !p.isGround
+               && p.x + p.width > this.cameraX + 80
+               && p.x < this.cameraX + this.canvas.width)
+      .sort((a, b) =>
+        Math.abs(a.x + a.width / 2 - targetX) - Math.abs(b.x + b.width / 2 - targetX));
+    if (candidates.length === 0) return;
+    const p = candidates[0];
+    const offset = (Math.random() - 0.5) * p.width * 0.5;
+    const pp = new PowerPickup(p.x + p.width / 2 - 11 + offset, p.y - 44, type);
+    this.powerPickups.push(pp);
+  }
+
+  _applyPowerPickup(type) {
+    if (type === 'diamond') {
+      this.player.piercingShotTimer = 8;
+      this.powerupText = '◆ PIERCING SHOT';
+    } else {
+      this.player.powerInvincibleTimer = 6;
+      const hasFloat = this.modifier !== 'lowGravity';
+      if (hasFloat) this.player.floatTimer = 6;
+      this.powerupText = hasFloat ? '⚗ INVINCIBILITY + FLOAT' : '⚗ INVINCIBILITY';
+    }
+    this.powerupTimer = 3;
+    this.audio.playCorrect();
   }
 
   draw() {
@@ -1238,20 +1493,36 @@ export class Game {
       monster.draw(ctx, this.cameraX);
     }
 
+    // Janitor
+    if (this.modifier === 'janitor' && this.janitor && this.janitor.alive)
+      this.janitor.draw(ctx, this.cameraX);
+
     // Draw turrets, medkits, mines
-    for (const t of this.turrets)   t.draw(ctx, this.cameraX);
-    for (const mk of this.medkits)  mk.draw(ctx, this.cameraX);
+    for (const t of this.turrets)    t.draw(ctx, this.cameraX);
+    for (const mk of this.medkits)   mk.draw(ctx, this.cameraX);
+    for (const pp of this.powerPickups) pp.draw(ctx, this.cameraX);
     for (const mine of this.mines)  mine.draw(ctx, this.cameraX);
     if (this.bossKey)               this.bossKey.draw(ctx, this.cameraX);
 
     // Draw player
     this.player.draw(ctx, this.cameraX);
 
-    if (this.modifier === 'mirrorWorld') {
+    // Lightning warning platform flash (inside mirror transform)
+    if (this.modifier === 'lightningCrashes' && this.lightningWarningPlatform &&
+        this.lightningPhase === 'warning') {
+      const p = this.lightningWarningPlatform;
+      const psx = p.x - this.cameraX;
+      const flashOn = Math.floor(this.lightningTimer * 6) % 2 === 0;
+      ctx.save();
+      ctx.strokeStyle = flashOn ? '#ffffff' : '#ffee00';
+      ctx.shadowColor = flashOn ? '#ffffff' : '#ffcc00';
+      ctx.shadowBlur = 18;
+      ctx.lineWidth = 3;
+      ctx.strokeRect(psx, p.y, p.width, p.height);
       ctx.restore();
     }
 
-    // Knife slash effect
+    // Knife slash effect — drawn inside the mirror transform so coords are correct
     if (this.knifeTimer > 0) {
       const alpha = this.knifeTimer / 0.18;
       const px = Math.round(this.player.x - this.cameraX);
@@ -1268,6 +1539,15 @@ export class Game {
       const x1 = this.player.facingRight ? px + pw + 58 : px - 58;
       ctx.beginPath(); ctx.moveTo(x0, py + ph * 0.15); ctx.lineTo(x1, py + ph * 0.55); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(x0, py + ph * 0.40); ctx.lineTo(x1, py + ph * 0.80); ctx.stroke();
+      ctx.restore();
+    }
+
+    // Draw projectiles — inside mirror transform so they appear at correct world positions
+    for (const proj of this.projectiles) {
+      proj.draw(ctx, this.cameraX);
+    }
+
+    if (this.modifier === 'mirrorWorld') {
       ctx.restore();
     }
 
@@ -1303,13 +1583,57 @@ export class Game {
       ctx.restore();
     }
 
-    // Draw projectiles
-    for (const proj of this.projectiles) {
-      proj.draw(ctx, this.cameraX);
-    }
-
     // Red overlay for damage
     drawRedOverlay(ctx, this.redIntensity);
+
+    // Blackout overlay
+    if (this.modifier === 'blackout') {
+      if (this.blackoutFlash > 0) {
+        ctx.save();
+        ctx.globalAlpha = this.blackoutFlash * 0.35;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, cw, ch);
+        ctx.restore();
+      }
+      if (this.blackoutDark) {
+        const px = Math.round(this.player.x - this.cameraX + this.player.width / 2);
+        const py = Math.round(this.player.y + this.player.height / 2);
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,0,0,0.93)';
+        ctx.fillRect(0, 0, cw, ch);
+        ctx.globalCompositeOperation = 'destination-out';
+        const g = ctx.createRadialGradient(px, py, 0, px, py, 120);
+        g.addColorStop(0,   'rgba(0,0,0,1)');
+        g.addColorStop(0.7, 'rgba(0,0,0,0.85)');
+        g.addColorStop(1,   'rgba(0,0,0,0)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, 0, cw, ch);
+        ctx.restore();
+      }
+    }
+
+    // Lightning bolt (strike phase)
+    if (this.modifier === 'lightningCrashes' &&
+        this.lightningPhase === 'strike' && this.lightningWarningPlatform) {
+      const p = this.lightningWarningPlatform;
+      const bx = p.x - this.cameraX + p.width / 2;
+      const alpha = this.lightningStrikeTimer / 0.5;
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.fillStyle = 'rgba(255,255,255,0.2)';
+      ctx.fillRect(0, 0, cw, ch);
+      ctx.strokeStyle = '#ffffff';
+      ctx.shadowColor = '#aaccff';
+      ctx.shadowBlur = 24;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(bx, 0);
+      ctx.lineTo(bx + 18, p.y * 0.3);
+      ctx.lineTo(bx - 14, p.y * 0.6);
+      ctx.lineTo(bx + 10, p.y);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     // Epic VICTORY message during boss death animation (seconds 5–7)
     if (this.boss && this.boss.dying && this.boss.deathTimer > 5) {
@@ -1360,6 +1684,11 @@ export class Game {
       shield: this.player.shield,
       rapidFire: this.player.rapidFire,
       speedBoost: this.player.speedBoost,
+      powerInvincible: this.player.powerInvincibleTimer > 0,
+      piercingShot: this.player.piercingShotTimer > 0,
+      floatActive: this.player.floatTimer > 0,
+      powerupText: this.powerupText,
+      powerupTimer: this.powerupTimer,
       lang1: this.lang1,
       lang2: this.lang2,
       bossMode: !!this.boss,

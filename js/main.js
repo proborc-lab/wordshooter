@@ -54,6 +54,7 @@ let lastScore = 0;
 let lastVictory = false;
 let currentRound = 1;
 let activeModifier = null;
+let _round2Modifier = null; // remember round-2 modifier to exclude it from round 4
 let _originalDirection = ''; // remember round-1 direction for resetting
 const audio = new AudioManager();
 
@@ -71,15 +72,37 @@ const isTouchDevice = () => navigator.maxTouchPoints > 0;
 
 // Android virtual keyboard: when the visual viewport shrinks (keyboard opened),
 // scroll the focused input into view so it isn't hidden behind the keyboard.
+// Also track zoom level to show/hide the reset-zoom button.
+const resetZoomBtn = document.getElementById('reset-zoom-btn');
+
+function _handleViewportChange() {
+  // Show reset-zoom button whenever the user has zoomed in
+  if (window.visualViewport && resetZoomBtn) {
+    resetZoomBtn.classList.toggle('hidden', window.visualViewport.scale <= 1.05);
+  }
+
+  // Scroll focused input into view when keyboard opens
+  setTimeout(() => {
+    const focused = document.activeElement;
+    if (focused && (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA')) {
+      focused.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, 100);
+}
+
 if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', () => {
-    // Slight delay so iOS keyboard animation finishes before we scroll
-    setTimeout(() => {
-      const focused = document.activeElement;
-      if (focused && (focused.tagName === 'INPUT' || focused.tagName === 'TEXTAREA')) {
-        focused.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-      }
-    }, 100);
+  window.visualViewport.addEventListener('resize', _handleViewportChange);
+  window.visualViewport.addEventListener('scroll', _handleViewportChange);
+}
+
+if (resetZoomBtn) {
+  resetZoomBtn.addEventListener('click', () => {
+    // Force-reset zoom by briefly locking maximum-scale=1, then restoring
+    const meta = document.querySelector('meta[name="viewport"]');
+    const original = meta.content;
+    meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+    setTimeout(() => { meta.content = original; }, 100);
+    resetZoomBtn.classList.add('hidden');
   });
 }
 
@@ -542,6 +565,7 @@ function renderDirectionSelect() {
       _originalDirection = selectedDirection;
       currentRound = 1;
       activeModifier = null;
+      _round2Modifier = null;
       startGame();
     }
   });
@@ -578,19 +602,29 @@ function _renderMiniLeaderboard(listName) {
 
 // ---- BONUS ROUND PROGRESSION ----
 const MODIFIER_INFO = {
-  boxesMove:     { icon: '⇄', name: 'BOXES MOVE',     desc: 'The answer boxes slide back and forth — aim carefully!' },
-  mirrorWorld:   { icon: '↔', name: 'MIRROR WORLD',   desc: 'Left and right are swapped. Your brain will fight you.' },
-  doubleTrouble: { icon: '✦', name: 'DOUBLE TROUBLE', desc: 'The correct box needs two hits before it counts.' },
-  noPeek:        { icon: '👁', name: 'NO-PEEK',        desc: 'The prompt vanishes after 2.5 seconds. Remember it fast!' },
-  lowGravity:    { icon: '↑', name: 'LOW GRAVITY',    desc: 'Lighter jumps — platforms feel further apart.' },
+  boxesMove:         { icon: '⇄', name: 'BOXES MOVE',          desc: 'The answer boxes slide back and forth — aim carefully!' },
+  mirrorWorld:       { icon: '↔', name: 'MIRROR WORLD',        desc: 'Left and right are swapped. Your brain will fight you.' },
+  doubleTrouble:     { icon: '✦', name: 'DOUBLE TROUBLE',      desc: 'The correct box needs two hits before it counts.' },
+  noPeek:            { icon: '👁', name: 'NO-PEEK',             desc: 'The prompt vanishes after 2.5 seconds. Remember it fast!' },
+  lowGravity:        { icon: '↑', name: 'LOW GRAVITY',         desc: 'Lighter jumps — platforms feel further apart.' },
+  blackout:          { icon: '🌑', name: 'BLACKOUT',            desc: 'Every 8 seconds the screen goes dark. A small glow around you remains.' },
+  boxImpostors:      { icon: '🎭', name: 'BOX IMPOSTORS',       desc: 'One wrong box is wearing a disguise. The real answer has a subtle tell.' },
+  janitor:           { icon: '🧹', name: 'THE JANITOR',          desc: 'A mop-wielding NPC strolls through, erasing wrong boxes. Knife him to stun him.' },
+  lightningCrashes:  { icon: '⚡', name: 'LIGHTNING CRASHES',   desc: 'A platform flashes yellow — then a bolt strikes. Stand on it for a free launch.' },
+  wanderingMonsters: { icon: '👾', name: 'WANDERING MONSTERS',  desc: 'Random enemies wander in from the right every 8–12 seconds.' },
 };
 
 function _advanceRound() {
   currentRound++;
-  const pool = ['boxesMove', 'mirrorWorld', 'doubleTrouble', 'noPeek', 'lowGravity'];
+  const pool = [
+    'boxesMove', 'mirrorWorld', 'doubleTrouble', 'noPeek', 'lowGravity',
+    'blackout', 'boxImpostors', 'janitor', 'lightningCrashes', 'wanderingMonsters'
+  ];
   if (currentRound === 2 || currentRound === 4) {
-    const available = pool.filter(m => m !== activeModifier);
+    const exclude = currentRound === 4 ? _round2Modifier : activeModifier;
+    const available = pool.filter(m => m !== exclude);
     activeModifier = available[Math.floor(Math.random() * available.length)];
+    if (currentRound === 2) _round2Modifier = activeModifier;
   } else {
     activeModifier = null;
   }
@@ -646,6 +680,13 @@ function _showModifierBanner(modifier, round, onDone) {
 
 // ---- START GAME ----
 async function startGame() {
+  // Dev override: ?mod=<modifierKey> forces a specific modifier (any round)
+  const _devMod = new URLSearchParams(window.location.search).get('mod');
+  if (_devMod && _devMod in MODIFIER_INFO) {
+    activeModifier = _devMod;
+    if (currentRound < 2) currentRound = 2;
+  }
+
   hideOverlay();
   currentScreen = SCREENS.PLAYING;
   if (touchControls) {
@@ -782,6 +823,7 @@ function renderGameOver() {
       // Reset to round 1 with original direction
       currentRound = 1;
       activeModifier = null;
+      _round2Modifier = null;
       if (_originalDirection) selectedDirection = _originalDirection;
       _originalDirection = '';
     }
@@ -803,11 +845,16 @@ function renderGameOver() {
 
 function _modifierDisplayName(mod) {
   const names = {
-    boxesMove:    'Boxes Move',
-    mirrorWorld:  'Mirror World',
-    doubleTrouble:'Double Trouble',
-    noPeek:       'No-Peek',
-    lowGravity:   'Low Gravity',
+    boxesMove:         'Boxes Move',
+    mirrorWorld:       'Mirror World',
+    doubleTrouble:     'Double Trouble',
+    noPeek:            'No-Peek',
+    lowGravity:        'Low Gravity',
+    blackout:          'Blackout',
+    boxImpostors:      'Box Impostors',
+    janitor:           'The Janitor',
+    lightningCrashes:  'Lightning Crashes',
+    wanderingMonsters: 'Wandering Monsters',
   };
   return names[mod] || null;
 }
@@ -894,6 +941,7 @@ function goToScreen(screen) {
   if (screen === SCREENS.LIST_SELECT || screen === SCREENS.TITLE || screen === SCREENS.PLAYER_SELECT) {
     currentRound = 1;
     activeModifier = null;
+    _round2Modifier = null;
     _originalDirection = '';
   }
   // Reset list-select navigation when going all the way back to title/player

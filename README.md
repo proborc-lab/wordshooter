@@ -106,6 +106,34 @@ Wrong answers spawn one of three monsters at random:
 
 ---
 
+## Developer notes
+
+### Forcing a modifier for testing
+
+Append `?mod=<key>` to the URL before starting a game to force a specific modifier regardless of round. The modifier banner will show and the round is treated as round 2.
+
+```
+http://localhost:8080/?mod=blackout
+http://localhost:8080/?mod=janitor
+```
+
+| Key | Modifier |
+|---|---|
+| `boxesMove` | Boxes Move |
+| `mirrorWorld` | Mirror World |
+| `doubleTrouble` | Double Trouble |
+| `noPeek` | No-Peek |
+| `lowGravity` | Low Gravity |
+| `blackout` | Blackout |
+| `boxImpostors` | Box Impostors |
+| `janitor` | The Janitor |
+| `lightningCrashes` | Lightning Crashes |
+| `wanderingMonsters` | Wandering Monsters |
+
+Unknown keys are silently ignored.
+
+---
+
 ## Running locally
 
 No build step required. Just serve the project root over HTTP (browsers block ES6 module imports from `file://`):

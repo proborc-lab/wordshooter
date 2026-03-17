@@ -89,58 +89,112 @@ const FALLBACK = {
 };
 
 export function generateMisspellings(word, count = 3) {
-  const vowels = 'aeiou';
-  const results = [];
+  const w    = word;
+  const low  = w.toLowerCase();
+  const VOWELS = 'aeiouäëïöüáéíóúàèìòùâêîôûæœ';
+  const isVowel = c => VOWELS.includes(c);
 
-  const mutations = [
-    // Remove a non-edge character
-    (w) => {
-      if (w.length < 4) return null;
-      const idx = 1 + Math.floor(Math.random() * (w.length - 2));
-      return w.slice(0, idx) + w.slice(idx + 1);
-    },
-    // Double a random character
-    (w) => {
-      const idx = Math.floor(Math.random() * w.length);
-      return w.slice(0, idx) + w[idx] + w.slice(idx);
-    },
-    // Swap a vowel with a different vowel
-    (w) => {
-      const vowelIdxs = [];
-      for (let i = 0; i < w.length; i++) {
-        if (vowels.includes(w[i].toLowerCase())) vowelIdxs.push(i);
-      }
-      if (vowelIdxs.length === 0) return null;
-      const idx = vowelIdxs[Math.floor(Math.random() * vowelIdxs.length)];
-      const otherVowels = vowels.split('').filter(v => v !== w[idx].toLowerCase());
-      const newVowel = otherVowels[Math.floor(Math.random() * otherVowels.length)];
-      return w.slice(0, idx) + newVowel + w.slice(idx + 1);
+  const candidates = [];
+  const seen = new Set([low]);
+  const add = s => {
+    const sl = s.toLowerCase();
+    if (s.length >= 2 && !seen.has(sl)) { seen.add(sl); candidates.push(s); }
+  };
+
+  // ── 1. Transpose two adjacent letters (watrefall) ──────────────────────
+  for (let i = 0; i < w.length - 1; i++) {
+    if (low[i] !== low[i + 1])
+      add(w.slice(0, i) + w[i + 1] + w[i] + w.slice(i + 2));
+  }
+
+  // ── 2. Reduce a double consonant to single (waterfal) ──────────────────
+  for (let i = 0; i < w.length - 1; i++) {
+    if (low[i] === low[i + 1] && !isVowel(low[i]))
+      add(w.slice(0, i + 1) + w.slice(i + 2));
+  }
+
+  // ── 3. Double a consonant that isn't already doubled (watterfall) ───────
+  for (let i = 1; i < w.length - 1; i++) {
+    if (!isVowel(low[i]) && low[i] !== low[i - 1] && low[i] !== low[i + 1])
+      add(w.slice(0, i + 1) + w[i] + w.slice(i + 1));
+  }
+
+  // ── 4. Phonetically similar substitutions ──────────────────────────────
+  // Pairs: [pattern, replacement] — applied wherever pattern occurs in word
+  const phonetic = [
+    // Vowel digraphs (same sound, different spelling)
+    ['ie', 'ei'], ['ei', 'ie'],
+    ['ea', 'ee'], ['ee', 'ea'],
+    ['ou', 'oo'], ['oo', 'ou'],
+    ['ai', 'ay'], ['ay', 'ai'],
+    ['au', 'aw'], ['aw', 'au'],
+    // Consonant alternates
+    ['ck', 'k'],  ['kk', 'ck'],
+    ['ph', 'f'],  ['ff', 'ph'],
+    ['gh', 'g'],
+    ['ce', 'se'], ['se', 'ce'],
+    ['ci', 'si'], ['si', 'ci'],
+    // Suffixes often confused
+    ['tion',  'sion'],  ['sion',  'tion'],
+    ['ance',  'ence'],  ['ence',  'ance'],
+    ['able',  'ible'],  ['ible',  'able'],
+    ['ary',   'ery'],   ['ery',   'ary'],
+    // Unstressed endings
+    ['er', 'ar'], ['ar', 'er'],
+    ['or', 'ar'], ['ar', 'or'],
+    ['er', 're'], ['re', 'er'],
+    ['el', 'le'], ['le', 'el'],
+    // Accented vowel confusion (French / German words)
+    ['é', 'e'], ['è', 'e'], ['ê', 'e'],
+    ['ö', 'o'], ['ü', 'u'], ['ä', 'a'],
+    ['â', 'a'], ['î', 'i'], ['ô', 'o'], ['û', 'u'],
+    ['œ', 'oe'], ['æ', 'ae'],
+  ];
+  for (const [from, to] of phonetic) {
+    let idx = low.indexOf(from);
+    while (idx !== -1) {
+      add(w.slice(0, idx) + to + w.slice(idx + from.length));
+      idx = low.indexOf(from, idx + 1);
     }
+  }
+
+  // ── 5. Confused vowel in non-initial syllable (waterfill / waterfell) ───
+  const vowelConfusion = {
+    'a': ['e', 'i'],  'e': ['a', 'i'],  'i': ['e', 'a'],
+    'o': ['u', 'a'],  'u': ['o', 'a'],
+  };
+  for (let i = 2; i < w.length - 1; i++) {   // skip first two chars to keep word recognisable
+    const subs = vowelConfusion[low[i]];
+    if (subs) subs.forEach(sub => add(w.slice(0, i) + sub + w.slice(i + 1)));
+  }
+
+  // ── 6. Drop a single letter from the middle (last resort) ───────────────
+  for (let i = 1; i < w.length - 1; i++)
+    add(w.slice(0, i) + w.slice(i + 1));
+
+  // ── Pick 'count' candidates, preferring same-length (hardest to spot) ───
+  const _shuffle = arr => {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  };
+
+  const byDelta = d => candidates.filter(c => Math.abs(c.length - w.length) === d);
+  const pool = [
+    ..._shuffle(byDelta(0)),   // same length — hardest to spot
+    ..._shuffle(byDelta(1)),   // ±1 letter
+    ..._shuffle(byDelta(2)),   // ±2 letters
   ];
 
-  let attempts = 0;
-  while (results.length < count && attempts < 120) {
-    attempts++;
-    let mutated;
-    if (word.length < 4) {
-      // Fallback: double a letter
-      const idx = Math.floor(Math.random() * word.length);
-      mutated = word.slice(0, idx) + word[idx] + word.slice(idx);
-    } else {
-      const mutation = mutations[Math.floor(Math.random() * mutations.length)];
-      mutated = mutation(word);
-    }
-    if (!mutated || mutated === word || results.includes(mutated)) continue;
-    results.push(mutated);
-  }
+  const picked = pool.slice(0, count);
 
-  // Last-resort fill
-  while (results.length < count) {
-    const candidate = word + 'x'.repeat(results.length + 1);
-    results.push(candidate);
-  }
+  // Absolute fallback for very short or unusual words
+  while (picked.length < count)
+    picked.push(w + 'x'.repeat(picked.length + 1));
 
-  return results;
+  return picked;
 }
 
 // Flatten hierarchical manifest { "NL-EN": { lang1, lang2, categories: { Cat: [...] } } }

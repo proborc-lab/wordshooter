@@ -29,6 +29,29 @@
       ]
     }
   },
+  "NL-FY": {
+    "lang1": "Dutch",
+    "lang2": "Frysk",
+    "categories": {
+      "Daily Life": [
+        { "id": "NLFY_DL_animals",   "label": "🐾 Animals",          "subtitle": "Bisten",          "file": "data/NLFY/theme/animals.csv"   },
+        { "id": "NLFY_DL_food",      "label": "🍽 Food",              "subtitle": "Iten",            "file": "data/NLFY/theme/food.csv"      },
+        { "id": "NLFY_DL_fruit",     "label": "🍎 Fruit & Veg",       "subtitle": "Fruit & Grienten","file": "data/NLFY/theme/fruit.csv"     },
+        { "id": "NLFY_DL_drinks",    "label": "🥤 Drinks",            "subtitle": "Drinken",         "file": "data/NLFY/theme/drinks.csv"    },
+        { "id": "NLFY_DL_clothing",  "label": "👕 Clothing",          "subtitle": "Klean",           "file": "data/NLFY/theme/clothing.csv"  },
+        { "id": "NLFY_DL_house",     "label": "🏠 In the House",      "subtitle": "Yn 'e Hûs",       "file": "data/NLFY/theme/house.csv"     },
+        { "id": "NLFY_DL_kitchen",   "label": "🍳 Kitchen",           "subtitle": "Keuken",          "file": "data/NLFY/theme/kitchen.csv"   },
+        { "id": "NLFY_DL_family",    "label": "👨‍👩‍👧 Family",           "subtitle": "Famylje",         "file": "data/NLFY/theme/family.csv"    },
+        { "id": "NLFY_DL_body",      "label": "💪 Body Parts",        "subtitle": "Lichem",          "file": "data/NLFY/theme/body.csv"      },
+        { "id": "NLFY_DL_weather",   "label": "⛅ Weather",           "subtitle": "Waar",            "file": "data/NLFY/theme/weather.csv"   },
+        { "id": "NLFY_DL_transport", "label": "🚗 Transport",         "subtitle": "Ferfier",         "file": "data/NLFY/theme/transport.csv" },
+        { "id": "NLFY_DL_city",      "label": "🏙 In the City",       "subtitle": "Yn 'e Stêd",      "file": "data/NLFY/theme/city.csv"      },
+        { "id": "NLFY_DL_nature",    "label": "🌿 Nature",            "subtitle": "Natuer",          "file": "data/NLFY/theme/nature.csv"    },
+        { "id": "NLFY_DL_sports",    "label": "⚽ Sports & Hobbies",  "subtitle": "Sport & Hobby",   "file": "data/NLFY/theme/sports.csv"    },
+        { "id": "NLFY_DL_emotions",  "label": "😊 Emotions",          "subtitle": "Gefoelens",       "file": "data/NLFY/theme/emotions.csv"  }
+      ]
+    }
+  },
   "NL-FR": {
     "lang1": "Dutch",
     "lang2": "French",

@@ -29,6 +29,29 @@
       ]
     }
   },
+  "NL-DE": {
+    "lang1": "Dutch",
+    "lang2": "Deutsch",
+    "categories": {
+      "Daily Life": [
+        { "id": "NLDE_DL_animals",   "label": "🐾 Animals",          "subtitle": "Tiere",           "file": "data/NLDE/theme/animals.csv"   },
+        { "id": "NLDE_DL_food",      "label": "🍽 Food",              "subtitle": "Essen",           "file": "data/NLDE/theme/food.csv"      },
+        { "id": "NLDE_DL_fruit",     "label": "🍎 Fruit & Veg",       "subtitle": "Obst & Gemüse",   "file": "data/NLDE/theme/fruit.csv"     },
+        { "id": "NLDE_DL_drinks",    "label": "🥤 Drinks",            "subtitle": "Getränke",        "file": "data/NLDE/theme/drinks.csv"    },
+        { "id": "NLDE_DL_clothing",  "label": "👕 Clothing",          "subtitle": "Kleidung",        "file": "data/NLDE/theme/clothing.csv"  },
+        { "id": "NLDE_DL_house",     "label": "🏠 In the House",      "subtitle": "Im Haus",         "file": "data/NLDE/theme/house.csv"     },
+        { "id": "NLDE_DL_kitchen",   "label": "🍳 Kitchen",           "subtitle": "Küche",           "file": "data/NLDE/theme/kitchen.csv"   },
+        { "id": "NLDE_DL_family",    "label": "👨‍👩‍👧 Family",           "subtitle": "Familie",         "file": "data/NLDE/theme/family.csv"    },
+        { "id": "NLDE_DL_body",      "label": "💪 Body Parts",        "subtitle": "Körper",          "file": "data/NLDE/theme/body.csv"      },
+        { "id": "NLDE_DL_weather",   "label": "⛅ Weather",           "subtitle": "Wetter",          "file": "data/NLDE/theme/weather.csv"   },
+        { "id": "NLDE_DL_transport", "label": "🚗 Transport",         "subtitle": "Verkehr",         "file": "data/NLDE/theme/transport.csv" },
+        { "id": "NLDE_DL_city",      "label": "🏙 In the City",       "subtitle": "In der Stadt",    "file": "data/NLDE/theme/city.csv"      },
+        { "id": "NLDE_DL_nature",    "label": "🌿 Nature",            "subtitle": "Natur",           "file": "data/NLDE/theme/nature.csv"    },
+        { "id": "NLDE_DL_sports",    "label": "⚽ Sports & Hobbies",  "subtitle": "Sport & Hobby",   "file": "data/NLDE/theme/sports.csv"    },
+        { "id": "NLDE_DL_emotions",  "label": "😊 Emotions",          "subtitle": "Gefühle",         "file": "data/NLDE/theme/emotions.csv"  }
+      ]
+    }
+  },
   "NL-FY": {
     "lang1": "Dutch",
     "lang2": "Frysk",

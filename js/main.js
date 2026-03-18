@@ -179,10 +179,10 @@ function renderTitle() {
     ctx.font = `bold ${Math.min(96, cw * 0.1)}px monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('WORD', cw / 2, ch / 2 - 80);
+    ctx.fillText('UITGELEERD', cw / 2, ch / 2 - 40);
     ctx.fillStyle = '#cc2222';
     ctx.shadowColor = `rgba(200,50,50,${glowIntensity})`;
-    ctx.fillText('SHOOTER', cw / 2, ch / 2);
+    ctx.fillText('?', cw / 2, ch / 2 + 40);
     ctx.restore();
 
     // Subtitle
@@ -190,7 +190,7 @@ function renderTitle() {
     ctx.font = '16px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('DUTCH · ENGLISH · VOCABULARY · TRAINING', cw / 2, ch / 2 + 70);
+    ctx.fillText('Vocabulary Shooting Drills', cw / 2, ch / 2 + 90);
 
     // Blinking start prompt
     if (Math.floor(titleAnim * 2) % 2 === 0) {
@@ -203,7 +203,7 @@ function renderTitle() {
     ctx.fillStyle = '#333';
     ctx.font = '11px monospace';
     ctx.textAlign = 'right';
-    ctx.fillText('v1.0 © Wordshooter', cw - 10, ch - 10);
+    ctx.fillText('v1.0 © Uitgeleerd?', cw - 10, ch - 10);
 
     // Corner decorations
     ctx.strokeStyle = '#2d4a2d';
@@ -245,8 +245,8 @@ function renderPlayerSelect() {
 
   showOverlay(`
     <div class="menu-panel">
-      <div class="menu-title">WORD</div>
-      <div class="menu-subtitle">SHOOTER</div>
+      <div class="menu-title">UITGELEERD</div>
+      <div class="menu-subtitle">?</div>
       <div class="menu-section-title">Select or Create Player</div>
       <input class="menu-input" id="playerInput" type="text" placeholder="Enter name..." maxlength="20" autocomplete="off" />
       <button class="menu-btn" id="playBtn">▶ PLAY AS NEW</button>

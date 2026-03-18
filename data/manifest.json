@@ -102,6 +102,9 @@
       "Homework": {
         "Méthode 131E": [
           { "id": "NLFR_131E", "label": "📝 E131 — Week 1", "subtitle": "E 131" }
+        ],
+        "Méthode 131F": [
+          { "id": "NLFR_131F", "label": "📝 F131 — Week 1", "subtitle": "F 131" }
         ]
       }
     }

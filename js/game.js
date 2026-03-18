@@ -103,6 +103,12 @@ export class Game {
     // Wandering Monsters
     this.wanderSpawnTimer = 8 + Math.random() * 4;
 
+    // Pedagogical feedback overlays
+    this.correctPairText  = null;  // "✓ hond → dog"
+    this.correctPairTimer = 0;
+    this.wrongRevealText  = null;  // "✗ hond → dog"
+    this.wrongRevealTimer = 0;
+
     // Apply modifier effects that need to be set up once at game start
     if (this.modifier === 'lowGravity') {
       this.player.gravityMult = 0.78;
@@ -276,6 +282,19 @@ export class Game {
     this.correctCount++;
     this.audio.playCorrect();
 
+    // Point 11 + Point 3: correct pair flash + TTS
+    const _cw = this.getCurrentWord();
+    if (_cw) {
+      const prompt = this.direction === 'a-to-b' ? _cw.a : _cw.b;
+      const answer = this.direction === 'a-to-b' ? _cw.b : _cw.a;
+      this.correctPairText  = `✓ ${prompt} → ${answer}`;
+      this.correctPairTimer = 1.0;
+
+      const answerLang = this.direction === 'a-to-b' ? this.lang2 : this.lang1;
+      const LANG_CODES = { Dutch:'nl-NL', English:'en-GB', Deutsch:'de-DE', French:'fr-FR', Frysk:'fy' };
+      this.audio.speak(answer, LANG_CODES[answerLang] || 'en-GB');
+    }
+
     // Power pickup spawn (rounds 2–4 only, once per round)
     if (!this._powerSpawnDone && this.round >= 2) {
       const ideal = this.round === 2 ? 15 : this.round === 3 ? 10 : 12;
@@ -343,6 +362,15 @@ export class Game {
     this.multiplier = 1;
     this.consecutiveWrong++;
     this.audio.playWrong();
+
+    // Point 1: reveal correct answer after wrong hit
+    const _ww = this.getCurrentWord();
+    if (_ww) {
+      const prompt = this.direction === 'a-to-b' ? _ww.a : _ww.b;
+      const answer = this.direction === 'a-to-b' ? _ww.b : _ww.a;
+      this.wrongRevealText  = `✗ ${prompt} → ${answer}`;
+      this.wrongRevealTimer = 1.8;
+    }
 
     // RE-01: accumulate red tint per wrong answer
     this.redIntensity = Math.min(1, this.redIntensity + 0.2);
@@ -1162,6 +1190,9 @@ export class Game {
       this.knifeTimer -= dt;
     }
 
+    if (this.correctPairTimer > 0) this.correctPairTimer -= dt;
+    if (this.wrongRevealTimer  > 0) this.wrongRevealTimer  -= dt;
+
     // Streak notify timer
     if (this.streakNotifyTimer > 0) {
       this.streakNotifyTimer -= dt;
@@ -1695,6 +1726,10 @@ export class Game {
       modifier: this.modifier,
       round: this.round,
       promptVisible: this.modifier !== 'noPeek' || this.noPeekTimer > 0,
+      correctPairText:  this.correctPairText,
+      correctPairTimer: this.correctPairTimer,
+      wrongRevealText:  this.wrongRevealText,
+      wrongRevealTimer: this.wrongRevealTimer,
     };
     drawHUD(ctx, hudState);
     if (this.boss) {

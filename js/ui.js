@@ -324,6 +324,46 @@ export function drawHUD(ctx, gameState) {
 
     ctx.restore();
   }
+
+  // === Wrong-reveal panel (red, ~1.8s) ===
+  if (gameState.wrongRevealTimer > 0 && gameState.wrongRevealText) {
+    const alpha = Math.min(1, gameState.wrongRevealTimer / 0.4);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    const pw = Math.min(500, cw - 40);
+    const ph = 60;
+    const px = (cw - pw) / 2;
+    const py = 90;
+    ctx.fillStyle = 'rgba(120, 0, 0, 0.88)';
+    ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 10); ctx.fill();
+    ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 20px monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.shadowColor = '#ff0000'; ctx.shadowBlur = 8;
+    ctx.fillText(gameState.wrongRevealText, cw / 2, py + ph / 2);
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
+  // === Correct-pair panel (green, ~1.0s) ===
+  if (gameState.correctPairTimer > 0 && gameState.correctPairText) {
+    const alpha = Math.min(1, gameState.correctPairTimer / 0.3);
+    ctx.save();
+    ctx.globalAlpha = alpha * 0.9;
+    const pw = Math.min(420, cw - 40);
+    const ph = 48;
+    const px = (cw - pw) / 2;
+    const py = 90;
+    ctx.fillStyle = 'rgba(0, 80, 0, 0.82)';
+    ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 8); ctx.fill();
+    ctx.strokeStyle = '#44ff88'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = '#ccffcc';
+    ctx.font = 'bold 18px monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(gameState.correctPairText, cw / 2, py + ph / 2);
+    ctx.restore();
+  }
 }
 
 export function drawBossHUD(ctx, boss) {

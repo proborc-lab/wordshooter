@@ -2,6 +2,7 @@ export class AudioManager {
   constructor() {
     this.ctx = null;
     this.enabled = true;
+    this._voices = [];
   }
 
   init() {
@@ -11,6 +12,39 @@ export class AudioManager {
       console.warn('AudioContext not available:', e);
       this.enabled = false;
     }
+    this._initVoices();
+  }
+
+  _initVoices() {
+    if (!window.speechSynthesis) return;
+    const load = () => { this._voices = window.speechSynthesis.getVoices(); };
+    load();
+    window.speechSynthesis.addEventListener('voiceschanged', load);
+  }
+
+  _pickVoice(langCode) {
+    const prefix = langCode.split('-')[0].toLowerCase();
+    const candidates = this._voices.filter(v => v.lang.toLowerCase().startsWith(prefix));
+    if (!candidates.length) return null;
+    const score = v => {
+      const n = v.name.toLowerCase();
+      if (/neural|natural|enhanced|premium/.test(n)) return 4;
+      if (/google|microsoft/.test(n)) return 3;
+      if (!v.localService) return 2;
+      return 1;
+    };
+    return candidates.sort((a, b) => score(b) - score(a))[0];
+  }
+
+  speak(text, langCode) {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.lang = langCode;
+    utter.rate = 0.9;
+    const voice = this._pickVoice(langCode);
+    if (voice) utter.voice = voice;
+    window.speechSynthesis.speak(utter);
   }
 
   _resume() {

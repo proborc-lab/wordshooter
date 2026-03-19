@@ -62,7 +62,7 @@ export class Player {
       this.walkTimer += dt;
       if (this.walkTimer > 0.12) {
         this.walkTimer = 0;
-        this.walkFrame = (this.walkFrame + 1) % 4;
+        this.walkFrame = (this.walkFrame % 2) + 1;  // cycles 1 → 2 → 1 → …
       }
     } else {
       this.walkFrame = 0;

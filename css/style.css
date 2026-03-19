@@ -96,13 +96,13 @@ canvas {
 }
 
 .tc-btn {
-  width: 10vh;
-  height: 10vh;
+  width: max(44px, 8vh);
+  height: max(44px, 8vh);
   background: rgba(42, 74, 42, 0.45);
   border: 2px solid rgba(160, 200, 128, 0.55);
   border-radius: 12px;
   color: #a0e080;
-  font-size: 4vh;
+  font-size: max(18px, 4vh);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -146,27 +146,73 @@ canvas {
   background: #1a2e1a;
   border: 2px solid #4a7a4a;
   border-radius: 4px;
-  padding: 40px 60px;
-  min-width: 400px;
-  max-width: 600px;
+  padding: clamp(20px, 5vw, 40px) clamp(16px, 7vw, 60px);
+  min-width: min(400px, 90vw);
+  max-width: min(600px, 96vw);
   max-height: 90vh;
   overflow-y: auto;
   text-align: center;
 }
 
 .menu-title {
-  font-size: 48px;
+  font-size: clamp(28px, 8vw, 48px);
   color: #4a7a4a;
   text-shadow: 0 0 20px #2d4a2d;
   margin-bottom: 10px;
-  letter-spacing: 4px;
+  letter-spacing: clamp(1px, 1vw, 4px);
 }
 
 .menu-subtitle {
-  font-size: 14px;
+  font-size: clamp(11px, 2.5vw, 14px);
   color: #6a9a6a;
-  margin-bottom: 40px;
+  margin-bottom: clamp(20px, 5vw, 40px);
   letter-spacing: 2px;
+}
+
+/* ---- Small-screen prompts (portrait rotation + landscape too-small) ---- */
+#rotate-prompt,
+#small-screen-prompt {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #0a0a0a;
+  color: #4a7a4a;
+  font-family: monospace;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  text-align: center;
+  padding: 32px;
+}
+
+#rotate-prompt .rotate-icon {
+  font-size: 64px;
+  animation: rotate-hint 2s ease-in-out infinite;
+}
+
+#rotate-prompt p,
+#small-screen-prompt p {
+  font-size: 16px;
+  letter-spacing: 2px;
+  color: #6a9a6a;
+  max-width: 300px;
+  line-height: 1.6;
+}
+
+@keyframes rotate-hint {
+  0%, 100% { transform: rotate(0deg); }
+  40%       { transform: rotate(90deg); }
+  60%       { transform: rotate(90deg); }
+}
+
+@media (orientation: portrait) and (max-width: 600px) {
+  #rotate-prompt { display: flex; }
+}
+
+@media (orientation: landscape) and (max-height: 450px) {
+  #small-screen-prompt { display: flex; }
 }
 
 .menu-btn {
@@ -228,7 +274,7 @@ canvas {
   font-size: 12px;
   color: #6a9a6a;
   letter-spacing: 3px;
-  margin: 20px 0 10px 0;
+  margin: clamp(10px, 3vh, 20px) 0 clamp(6px, 1.5vh, 10px) 0;
   text-transform: uppercase;
 }
 
@@ -330,7 +376,7 @@ canvas {
 }
 
 #bonus-countdown {
-  font-size: 64px;
+  font-size: clamp(40px, 12vw, 64px);
   color: #44ff44;
   line-height: 1;
   margin-bottom: 6px;

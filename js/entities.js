@@ -437,8 +437,8 @@ export class BatMonster {
     this.y = y;
     this.width  = 52;
     this.height = 32;
-    this.vx = 55;          // drifts rightward as it escapes
-    this.vy = -90;         // rising
+    this.vx = 28;          // drifts rightward as it escapes
+    this.vy = -45;         // rising
     this.alive = true;
     this.health = 1;
     this.animTimer = 0;
@@ -450,7 +450,7 @@ export class BatMonster {
   update(dt) {
     this.animTimer += dt;
     if (this.spawnTimer > 0) { this.spawnTimer -= dt; return null; }
-    this.vy -= 18 * dt;    // accelerates upward
+    this.vy -= 9 * dt;     // accelerates upward
     this.x  += this.vx * dt;
     this.y  += this.vy * dt;
     if (this.y < -120) this.alive = false;   // escaped off-top
@@ -551,38 +551,105 @@ export class BatMonster {
 
 // ── SnakeMonster ──────────────────────────────────────────────────────────────
 export class SnakeMonster {
-  constructor(x, y) {
+  // platform: { x, width } of the platform it spawns on (or null for wandering spawns)
+  constructor(x, y, platform) {
     this.x = x;
     this.y = y;
     this.width  = 58;
     this.height = 16;
-    this.vx = -60;         // crawls left toward player
     this.vy = 0;
     this.alive = true;
     this.health = 1;
     this.animTimer = 0;
-    this.jumpTimer  = 0.9 + Math.random() * 0.8;
-    this.hasJumped  = false;
     this.gravity    = 290;
     this.spawnTimer = 0.2;
+
+    if (platform) {
+      this._setPlatform(platform);
+      this.state = 'patrol_left';
+      this.vx    = -55;
+    } else {
+      // Wandering spawn with no platform: simple timer-based lunge
+      this.platLeft  = null;
+      this.platRight = null;
+      this.state     = 'simple';
+      this.vx        = -60;
+      this.jumpTimer = 0.9 + Math.random() * 0.8;
+      this.hasJumped = false;
+    }
   }
 
-  update(dt) {
+  _setPlatform(p) {
+    this.platLeft  = p.x;
+    this.platRight = Math.max(p.x, p.x + p.width - this.width);
+  }
+
+  update(dt, playerX, platforms) {
     this.animTimer += dt;
     if (this.spawnTimer > 0) { this.spawnTimer -= dt; return; }
-    this.x += this.vx * dt;
-    if (!this.hasJumped) {
-      this.jumpTimer -= dt;
-      if (this.jumpTimer <= 0) {
-        this.hasJumped = true;
-        this.vy = -240;
-        this.vx = -90;     // lunges forward faster during jump
+
+    if (this.state === 'simple') {
+      this.x += this.vx * dt;
+      if (!this.hasJumped) {
+        this.jumpTimer -= dt;
+        if (this.jumpTimer <= 0) {
+          this.hasJumped = true;
+          this.vy = -240;
+          this.vx = -90;
+        }
+      } else {
+        this.vy += this.gravity * dt;
+        this.y  += this.vy * dt;
+        if (this.y > 1400) this.alive = false;
       }
-    } else {
-      this.vy += this.gravity * dt;
-      this.y  += this.vy * dt;
+      return;
     }
-    if (this.y > 1400) this.alive = false;   // dropped off-screen
+
+    if (this.state === 'patrol_left' || this.state === 'patrol_left2') {
+      this.vx  = -55;
+      this.x  += this.vx * dt;
+      if (this.x <= this.platLeft) {
+        this.x = this.platLeft;
+        if (this.state === 'patrol_left') {
+          this.state = 'patrol_right';
+        } else {
+          // Second left pass done — jump toward player
+          this.state = 'airborne';
+          this.vy    = -280;
+          this.vx    = (playerX !== undefined && playerX > this.x + this.width / 2) ? 80 : -80;
+        }
+      }
+    } else if (this.state === 'patrol_right') {
+      this.vx  = 55;
+      this.x  += this.vx * dt;
+      if (this.x >= this.platRight) {
+        this.x     = this.platRight;
+        this.state = 'patrol_left2';
+      }
+    } else if (this.state === 'airborne') {
+      this.vy += this.gravity * dt;
+      this.x  += this.vx * dt;
+      this.y  += this.vy * dt;
+      // Check for landing on a platform
+      if (this.vy > 0 && platforms) {
+        const bottom     = this.y + this.height;
+        const prevBottom = bottom - this.vy * dt;
+        for (const p of platforms) {
+          if (p.isGround) continue;
+          if (this.x + this.width > p.x && this.x < p.x + p.width) {
+            if (bottom >= p.y && prevBottom < p.y + 4) {
+              this.y  = p.y - this.height;
+              this.vy = 0;
+              this._setPlatform(p);
+              this.state = 'patrol_left';
+              this.vx    = -55;
+              break;
+            }
+          }
+        }
+      }
+      if (this.y > 1400) this.alive = false;
+    }
   }
 
   takeDamage() {
@@ -599,7 +666,10 @@ export class SnakeMonster {
     if (spawnScale <= 0) return;
 
     ctx.save();
-    ctx.translate(sx, sy);
+    // Flip horizontally when crawling/lunging right so the head leads
+    ctx.translate(sx + this.width / 2, sy);
+    if (this.vx > 0) ctx.scale(-1, 1);
+    ctx.translate(-this.width / 2, 0);
     ctx.scale(spawnScale, 1);
 
     const segCount = 8;
@@ -751,7 +821,7 @@ export class Turret {
     this.x = x;
     this.y = y;
     this.width = 26;
-    this.height = 18;
+    this.height = 36;
     this.alive = true;
     this.health = 1;
     this.fireTimer = 1.5 + Math.random() * 2;
@@ -811,7 +881,7 @@ export class Turret {
     ctx.translate(cx, cy);
     ctx.rotate(angle);
     ctx.fillStyle = '#555533';
-    ctx.fillRect(2, -3, 16, 6);
+    ctx.fillRect(2, -3, 26, 6);
     ctx.restore();
 
     // Blinking targeting light

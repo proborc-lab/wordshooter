@@ -79,6 +79,7 @@ export class Game {
     this.bossKey = null;
     this.startDelay = 2;
     this.knifeTimer = 0;
+    this.knifeUp = false;   // true → upward slash (triggered while airborne)
     this.lastTime = null;
     this.animId = null;
     this._listName = listName;
@@ -384,7 +385,12 @@ export class Game {
     } else if (roll < 0.67) {
       monster = new BatMonster(mx, box.y - 40);
     } else {
-      monster = new SnakeMonster(mx, box.y + box.height - 10);
+      // Find the platform the box sits on so the snake can patrol it
+      const platY = box.y + box.height + 5;
+      const spawnPlat = this.level.getPlatformsInView().find(
+        p => !p.isGround && Math.abs(p.y - platY) < 20
+          && p.x <= box.x + box.width && p.x + p.width >= box.x);
+      monster = new SnakeMonster(mx, box.y + box.height - 10, spawnPlat || null);
     }
     this.monsters.push(monster);
 
@@ -646,14 +652,20 @@ export class Game {
   _tryKnife() {
     if (this.gameOver || this.victory || this.paused) return;
     this.knifeTimer = 0.18;
+    this.knifeUp = !this.player.onGround;
     this.audio.playShoot();
 
     const reach = 80;
     const px = this.player.x;
     const pw = this.player.width;
+    const pCX = px + pw / 2;
     const pCY = this.player.y + this.player.height / 2;
 
     const inReach = (cx, cy) => {
+      if (this.knifeUp) {
+        // Upward slash: wide arc above the player
+        return Math.abs(pCX - cx) < reach && cy < pCY && cy > pCY - 110;
+      }
       const inFront = this.player.facingRight
         ? cx > px && cx < px + pw + reach
         : cx < px + pw && cx > px - reach;
@@ -668,8 +680,14 @@ export class Game {
           box.hit(true);
           this._applyBonusReward(box.reward);
         } else if (box.isCorrect) {
-          box.hit(true);
-          this.onCorrectHit();
+          // Double Trouble: first knife hit only chips the box
+          if (box.hitsNeeded && box.hitsRemaining > 1) {
+            box.hitsRemaining--;
+            box.hit(false);
+          } else {
+            box.hit(true);
+            this.onCorrectHit();
+          }
         } else {
           box.hit(false);
           this.onWrongHit(box);
@@ -784,7 +802,7 @@ export class Game {
       const r = Math.random();
       if (r < 0.12) {
         // Turret on the right edge of the platform
-        this.turrets.push(new Turret(p.x + p.width - 28, p.y - 18));
+        this.turrets.push(new Turret(p.x + p.width - 28, p.y - 36));
       } else if (r < 0.22) {
         // Medkit hovering above platform centre
         this.medkits.push(new Medkit(p.x + p.width / 2 - 14 + (Math.random() - 0.5) * (p.width * 0.5), p.y - 26));
@@ -1134,8 +1152,9 @@ export class Game {
 
     // Update monsters
     const newProjectiles = [];
+    const visiblePlats = this.level.getPlatformsInView();
     for (const monster of this.monsters) {
-      const result = monster.update(dt, this.player.x + this.player.width / 2);
+      const result = monster.update(dt, this.player.x + this.player.width / 2, visiblePlats);
       if (result) {
         newProjectiles.push(result);
         this.audio.playMonsterFire();
@@ -1566,10 +1585,18 @@ export class Game {
       ctx.lineWidth = 3;
       ctx.shadowColor = '#ffff88';
       ctx.shadowBlur = 10;
-      const x0 = this.player.facingRight ? px + pw      : px;
-      const x1 = this.player.facingRight ? px + pw + 58 : px - 58;
-      ctx.beginPath(); ctx.moveTo(x0, py + ph * 0.15); ctx.lineTo(x1, py + ph * 0.55); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(x0, py + ph * 0.40); ctx.lineTo(x1, py + ph * 0.80); ctx.stroke();
+      if (this.knifeUp) {
+        // Upward arc: two lines sweeping up from shoulder level
+        const cx = px + pw / 2;
+        ctx.beginPath(); ctx.moveTo(cx - 22, py + ph * 0.30); ctx.lineTo(cx + 10, py - 44); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cx +  2, py + ph * 0.15); ctx.lineTo(cx + 34, py - 34); ctx.stroke();
+      } else {
+        // Forward sweep (existing)
+        const x0 = this.player.facingRight ? px + pw      : px;
+        const x1 = this.player.facingRight ? px + pw + 58 : px - 58;
+        ctx.beginPath(); ctx.moveTo(x0, py + ph * 0.15); ctx.lineTo(x1, py + ph * 0.55); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(x0, py + ph * 0.40); ctx.lineTo(x1, py + ph * 0.80); ctx.stroke();
+      }
       ctx.restore();
     }
 

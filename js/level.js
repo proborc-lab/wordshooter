@@ -89,6 +89,9 @@ export class Level {
     this.lastPlatformY = this.groundY;
     this.lastPlatformTier = 0;
 
+    this._denseBurst = false;       // true while generating a dense cluster
+    this._denseRemaining = 0;       // platforms left in the current burst
+
     // Generate initial platforms
     while (this.lastPlatformX < this.canvas.width + 2000) {
       this._generateNextPlatform();
@@ -96,11 +99,25 @@ export class Level {
   }
 
   _generateNextPlatform() {
-    const minGap = 55;
-    const maxGap = 150;
+    // ── Dense-burst bookkeeping ──────────────────────────────────────────────
+    if (this._denseBurst) {
+      this._denseRemaining--;
+      if (this._denseRemaining <= 0) this._denseBurst = false;
+    } else if (Math.random() < 0.05) {
+      // ~5% chance to start a burst of 10-18 tightly packed platforms
+      this._denseBurst    = true;
+      this._denseRemaining = 10 + Math.floor(Math.random() * 9);
+    }
+
+    const dense = this._denseBurst;
+
+    const minGap = dense ? 12 : 55;
+    const maxGap = dense ? 45 : 150;
     const gap = minGap + Math.random() * (maxGap - minGap);
     const x = this.lastPlatformX + gap;
-    const width = 80 + Math.random() * 130;
+    const width = dense
+      ? 55  + Math.random() * 80    // narrower individual platforms in bursts
+      : 80  + Math.random() * 130;
 
     // Richer tier transitions across 5 tiers
     // Can jump up 1 tier freely, up 2 with a double-jump; can fall freely
@@ -115,8 +132,8 @@ export class Level {
     let newTier = this.lastPlatformTier + tierDelta;
     newTier = Math.max(0, Math.min(this.tiers.length - 1, newTier));
 
-    // Occasional ground-level reset for breathing room
-    if (Math.random() < 0.07) newTier = 0;
+    // Occasional ground-level reset for breathing room (suppressed during bursts)
+    if (!dense && Math.random() < 0.07) newTier = 0;
 
     const y = this.tiers[newTier] + (Math.random() - 0.5) * 20;
 
@@ -145,9 +162,9 @@ export class Level {
 
     this.platforms.push(platform);
 
-    // ~42% chance: add a second platform nearby at a different tier
+    // During bursts add a second platform ~75% of the time; normally ~42%
     // (creates branching paths — player can go high or low)
-    if (Math.random() < 0.42) {
+    if (Math.random() < (dense ? 0.75 : 0.42)) {
       const altTier = Math.max(0, Math.min(this.tiers.length - 1,
         newTier + (Math.random() < 0.5 ? 2 : -2)));
       if (altTier !== newTier) {

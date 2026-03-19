@@ -7,6 +7,18 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <!-- Portrait-mode warning (hidden in landscape via CSS) -->
+  <div id="rotate-prompt">
+    <div class="rotate-icon">&#x1F4F1;</div>
+    <p>ROTATE YOUR DEVICE<br>to landscape mode to play</p>
+  </div>
+
+  <!-- Small-screen landscape warning -->
+  <div id="small-screen-prompt">
+    <p>&#x1F5A5; THIS GAME IS DESIGNED<br>FOR TABLETS AND DESKTOPS</p>
+    <p>The screen is too small<br>to play comfortably.</p>
+  </div>
+
   <canvas id="gameCanvas"></canvas>
   <div id="overlay" class="overlay hidden"></div>
 

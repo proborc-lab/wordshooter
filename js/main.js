@@ -15,12 +15,13 @@ resizeCanvas();
 window.addEventListener('resize', () => {
   resizeCanvas();
   if (currentGame) {
-    // Update level tiers
     currentGame.level.groundY = canvas.height - 60;
     currentGame.level.tiers = [
       canvas.height - 80,
-      canvas.height - 200,
-      canvas.height - 320
+      canvas.height - 175,
+      canvas.height - 275,
+      canvas.height - 375,
+      canvas.height - 470,
     ];
   }
   if (currentScreen !== 'PLAYING') {
@@ -906,7 +907,7 @@ function renderLeaderboard() {
   }
 
   showOverlay(`
-    <div class="menu-panel" style="min-width:500px;max-height:90vh;overflow-y:auto">
+    <div class="menu-panel" style="max-height:90vh;overflow-y:auto">
       <div class="menu-title" style="font-size:28px">LEADERBOARD</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin:12px 0;justify-content:center">
         ${tabsHtml}

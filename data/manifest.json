@@ -29,7 +29,9 @@
       ],
       "Homework": {
         "Method 128": [
-          { "id": "NLEN_128_1", "label": "📝 128 — Week 1", "subtitle": "128", "file": "data/NLEN/homework/NLEN_128_1.csv" }
+          { "id": "NLEN_128_1", "label": "📝 128 — Week 1", "subtitle": "128", "file": "data/NLEN/homework/NLEN_128_1.csv" },
+          { "id": "NLEN_128_2", "label": "📝 128 — Week 2", "subtitle": "128", "file": "data/NLEN/homework/NLEN_128_2.csv" },
+          { "id": "NLEN_128_3", "label": "📝 128 — Week 3", "subtitle": "128", "file": "data/NLEN/homework/NLEN_128_3.csv" }
         ]
       }
     }

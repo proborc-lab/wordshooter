@@ -655,7 +655,7 @@ export class Game {
     this.knifeUp = !this.player.onGround;
     this.audio.playShoot();
 
-    const reach = 80;
+    const reach = 65;
     const px = this.player.x;
     const pw = this.player.width;
     const pCX = px + pw / 2;
@@ -1007,7 +1007,7 @@ export class Game {
 
     // Blackout
     if (this.modifier === 'blackout') {
-      this.blackoutCycle = (this.blackoutCycle + dt) % 11;
+      this.blackoutCycle = (this.blackoutCycle + dt) % 10;
       this.blackoutFlash = (this.blackoutCycle >= 7.5 && this.blackoutCycle < 8.0)
         ? (8.0 - this.blackoutCycle) / 0.5 : 0;
       this.blackoutDark = this.blackoutCycle >= 8.0;
@@ -1591,9 +1591,9 @@ export class Game {
         ctx.beginPath(); ctx.moveTo(cx - 22, py + ph * 0.30); ctx.lineTo(cx + 10, py - 44); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(cx +  2, py + ph * 0.15); ctx.lineTo(cx + 34, py - 34); ctx.stroke();
       } else {
-        // Forward sweep (existing)
-        const x0 = this.player.facingRight ? px + pw      : px;
-        const x1 = this.player.facingRight ? px + pw + 58 : px - 58;
+        // Forward sweep
+        const x0 = this.player.facingRight ? px + pw * 0.5      : px + pw * 0.5;
+        const x1 = this.player.facingRight ? px + pw * 0.5 + 50 : px + pw * 0.5 - 50;
         ctx.beginPath(); ctx.moveTo(x0, py + ph * 0.15); ctx.lineTo(x1, py + ph * 0.55); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(x0, py + ph * 0.40); ctx.lineTo(x1, py + ph * 0.80); ctx.stroke();
       }

@@ -26,7 +26,12 @@
         { "id": "NLEN_DL_nature",    "label": "🌿 Nature",            "subtitle": "Natuur",          "file": "data/NLEN/theme/nature.csv"    },
         { "id": "NLEN_DL_sports",    "label": "⚽ Sports & Hobbies",  "subtitle": "Sport & Hobby",   "file": "data/NLEN/theme/sports.csv"    },
         { "id": "NLEN_DL_emotions",  "label": "😊 Emotions",          "subtitle": "Gevoelens",       "file": "data/NLEN/theme/emotions.csv"  }
-      ]
+      ],
+      "Homework": {
+        "Method 128": [
+          { "id": "NLEN_128_1", "label": "📝 128 — Week 1", "subtitle": "128", "file": "data/NLEN/homework/NLEN_128_1.csv" }
+        ]
+      }
     }
   },
   "NL-DE": {

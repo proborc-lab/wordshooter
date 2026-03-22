@@ -533,9 +533,10 @@ function renderDirectionSelect() {
       <button class="menu-btn" data-dir="b-to-a">${entry.lang2 || 'B'} → ${entry.lang1 || 'A'}</button>
       <div class="menu-section-title" style="margin-top:24px">Game Speed</div>
       <div style="display:flex;gap:8px;justify-content:center;margin-bottom:16px">
-        <button class="menu-btn speed-btn${selectedSpeed==='slow'?' selected':''}" data-speed="slow"  style="flex:1;font-size:13px">🐢 SLOW</button>
-        <button class="menu-btn speed-btn${selectedSpeed==='normal'?' selected':''}" data-speed="normal" style="flex:1;font-size:13px">🎯 NORMAL</button>
-        <button class="menu-btn speed-btn${selectedSpeed==='fast'?' selected':''}" data-speed="fast"  style="flex:1;font-size:13px">⚡ FAST</button>
+        <button class="menu-btn speed-btn${selectedSpeed==='super_easy'?' selected':''}" data-speed="super_easy" style="flex:1;font-size:13px">🐸 Frog</button>
+        <button class="menu-btn speed-btn${selectedSpeed==='slow'?' selected':''}" data-speed="slow"  style="flex:1;font-size:13px">🐢 Turtle</button>
+        <button class="menu-btn speed-btn${selectedSpeed==='normal'?' selected':''}" data-speed="normal" style="flex:1;font-size:13px">🐅 Tiger</button>
+        <button class="menu-btn speed-btn${selectedSpeed==='fast'?' selected':''}" data-speed="fast"  style="flex:1;font-size:13px">🦅 Falcon</button>
       </div>
       <div class="menu-section-title" style="margin-top:24px">Controls</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 16px;font-size:12px;color:#8ab08a;text-align:left;margin:0 8px 16px">

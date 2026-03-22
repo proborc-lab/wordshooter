@@ -17,6 +17,7 @@ export class Level {
       canvas.height - 375,  // tier 3 — mid-high
       canvas.height - 470,  // tier 4 — high
     ];
+    this.superEasyRail = null;
     this.bgStars = this._generateBgElements();
     this.bgIndustrial = this._generateBgElementsIndustrial();
     this.theme = 'forest'; // 'forest' | 'industrial'
@@ -186,8 +187,21 @@ export class Level {
     this.lastPlatformTier = newTier;
   }
 
+  initSuperEasyRail() {
+    const railY = this.groundY;
+    this.superEasyRail = {
+      x: 0, y: railY, width: this.canvas.width, height: 14,
+      tileColor: '#1a1a0a', accentColor: '#331100', tier: 0,
+      isBoostPad: true, isSuperEasyRail: true, decorated: true,
+    };
+    this.platforms.push(this.superEasyRail);
+  }
+
   update(dt, cameraX) {
     this.cameraX = cameraX;
+
+    // Keep super easy rail pinned to the left edge of the camera
+    if (this.superEasyRail) this.superEasyRail.x = cameraX;
 
     // Animate moving platforms
     for (const p of this.platforms) {
@@ -205,9 +219,9 @@ export class Level {
       this._generateNextPlatform();
     }
 
-    // Remove platforms far behind camera
+    // Remove platforms far behind camera (keep the super easy rail always)
     const cutoff = cameraX - 400;
-    this.platforms = this.platforms.filter(p => p.x + p.width > cutoff);
+    this.platforms = this.platforms.filter(p => p.isSuperEasyRail || p.x + p.width > cutoff);
   }
 
   getPlatformsInView() {
@@ -506,7 +520,7 @@ export class Level {
 
     // Search a wider window so the spacing requirement doesn't starve us
     const candidates = this.platforms
-      .filter(p => p.x > startX && p.x < startX + 1400 && !p.isGround)
+      .filter(p => p.x > startX && p.x < startX + 1400 && !p.isGround && !p.isBoostPad)
       .sort((a, b) => a.x - b.x);
 
     // Greedily pick platforms whose box won't overlap the previous one

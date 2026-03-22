@@ -25,13 +25,15 @@ export class Game {
 
     // Speed setting — affects scroll rate and word timer
     const speedPresets = {
-      slow:   { scroll: 65,  timerFactor: 1.6 },
-      normal: { scroll: 120, timerFactor: 1.0 },
-      fast:   { scroll: 190, timerFactor: 0.65 }
+      super_easy: { scroll: 40,  timerFactor: 2.2 },
+      slow:       { scroll: 65,  timerFactor: 1.6 },
+      normal:     { scroll: 120, timerFactor: 1.0 },
+      fast:       { scroll: 190, timerFactor: 0.65 }
     };
     const sp = speedPresets[speed] || speedPresets.normal;
     this.speedFactor = sp.timerFactor;
     this._scrollSpeed = sp.scroll;
+    this.superEasy = speed === 'super_easy';
 
     this.words = shuffle([...wordList]);
     this.currentWordIndex = 0;
@@ -49,6 +51,7 @@ export class Game {
     this.projectiles = [];
     this.level = new Level(canvas);
     this.level.scrollSpeed = sp.scroll;
+    if (this.superEasy) this.level.initSuperEasyRail();
     this.player = new Player(150, canvas.height - 200);
     this.cameraX = 0;
     this.running = true;
@@ -480,7 +483,7 @@ export class Game {
     // Spawn 2 medkits on the navigation (non-spelling) platforms so they
     // don't obscure the spelling boxes
     const navPlats = this.level.getAllPlatforms()
-      .filter(p => p.decorated && !p.isBossArena)
+      .filter(p => p.decorated && !p.isBossArena && !p.isSuperEasyRail)
       .sort((a, b) => a.x - b.x);
     const mkPlats = navPlats.slice(0, 2);
     for (const p of mkPlats) {
@@ -766,6 +769,7 @@ export class Game {
     const targetX = this.cameraX + this.canvas.width * 0.25;
     const candidates = this.level.getAllPlatforms()
       .filter(p => !p.isGround
+               && !p.isSuperEasyRail
                && p.x + p.width > this.cameraX + 40
                && p.x < this.cameraX + this.canvas.width * 0.55)
       .sort((a, b) =>
@@ -907,6 +911,8 @@ export class Game {
           this.player.onGround = false;
           this.player.jumpsLeft = 0;        // no extra jumps during boost
           this.player.boostTimer = 1.1;
+          this.player.tumbling = false;
+          this.player.tumbleAngle = 0;
           this.audio.playJump();
           break;
         }

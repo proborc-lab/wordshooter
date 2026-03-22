@@ -4,11 +4,11 @@
     "lang2": "English",
     "categories": {
       "Theme": [
-        { "id": "holidays",  "label": "🏖 Holidays",                "subtitle": "Vakantie"    },
-        { "id": "police",    "label": "🚔 Police",                   "subtitle": "Politie"     },
-        { "id": "school",    "label": "📚 School",                   "subtitle": "School"      },
-        { "id": "newyork",   "label": "🗽 New York",                 "subtitle": "New York"    },
-        { "id": "newyork2",  "label": "🎉 New York — Festivities",   "subtitle": "Feestdagen"  }
+        { "id": "holidays",  "label": "🏖 Holidays",                "subtitle": "Vakantie",   "file": "data/NLEN/theme/holidays.csv"  },
+        { "id": "police",    "label": "🚔 Police",                   "subtitle": "Politie",    "file": "data/NLEN/theme/police.csv"    },
+        { "id": "school",    "label": "📚 School",                   "subtitle": "School",     "file": "data/NLEN/theme/school.csv"    },
+        { "id": "newyork",   "label": "🗽 New York",                 "subtitle": "New York",   "file": "data/NLEN/theme/newyork.csv"   },
+        { "id": "newyork2",  "label": "🎉 New York — Festivities",   "subtitle": "Feestdagen", "file": "data/NLEN/theme/newyork2.csv"  }
       ],
       "Daily Life": [
         { "id": "NLEN_DL_animals",   "label": "🐾 Animals",          "subtitle": "Dieren",          "file": "data/NLEN/theme/animals.csv"   },
@@ -87,7 +87,7 @@
     "lang2": "French",
     "categories": {
       "Theme": [
-        { "id": "FRNL_Sport", "label": "⚽ Sport", "subtitle": "Sport" }
+        { "id": "FRNL_Sport", "label": "⚽ Sport", "subtitle": "Sport", "file": "data/NLFR/theme/FRNL_Sport.csv" }
       ],
       "Daily Life": [
         { "id": "NLFR_DL_animals",   "label": "🐾 Animals",          "subtitle": "Animaux",         "file": "data/NLFR/theme/animals.csv"   },
@@ -108,10 +108,10 @@
       ],
       "Homework": {
         "Méthode 131E": [
-          { "id": "NLFR_131E", "label": "📝 E131 — Week 1", "subtitle": "E 131" }
+          { "id": "NLFR_131E", "label": "📝 E131 — Week 1", "subtitle": "E 131", "file": "data/NLFR/homework/NLFR_131E.csv" }
         ],
         "Méthode 131F": [
-          { "id": "NLFR_131F", "label": "📝 F131 — Week 1", "subtitle": "F 131" }
+          { "id": "NLFR_131F", "label": "📝 F131 — Week 1", "subtitle": "F 131", "file": "data/NLFR/homework/NLFR_131F.csv" }
         ]
       }
     }

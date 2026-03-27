@@ -31,7 +31,17 @@
         "Method 128": [
           { "id": "NLEN_128_1", "label": "📝 128 — Week 1", "subtitle": "128", "file": "data/NLEN/homework/NLEN_128_1.csv" },
           { "id": "NLEN_128_2", "label": "📝 128 — Week 2", "subtitle": "128", "file": "data/NLEN/homework/NLEN_128_2.csv" },
-          { "id": "NLEN_128_3", "label": "📝 128 — Week 3", "subtitle": "128", "file": "data/NLEN/homework/NLEN_128_3.csv" }
+          { "id": "NLEN_128_3", "label": "📝 128 — Week 3", "subtitle": "128", "file": "data/NLEN/homework/NLEN_128_3.csv" },
+          { "id": "NLEN_128_4", "label": "📝 128 — Week 4", "subtitle": "128", "file": "data/NLEN/homework/NLEN_128_4.csv" },
+          { "id": "NLEN_128_5", "label": "📝 128 — Week 5", "subtitle": "128", "file": "data/NLEN/homework/NLEN_128_5.csv" },
+          { "id": "NLEN_128_6",  "label": "📝 128 — Week 6",  "subtitle": "128", "file": "data/NLEN/homework/NLEN_128_6.csv"  },
+          { "id": "NLEN_128_7",  "label": "📝 128 — Week 7",  "subtitle": "128", "file": "data/NLEN/homework/NLEN_128_7.csv"  },
+          { "id": "NLEN_128_8",  "label": "📝 128 — Week 8",  "subtitle": "128", "file": "data/NLEN/homework/NLEN_128_8.csv"  },
+          { "id": "NLEN_128_9",  "label": "📝 128 — Week 9",  "subtitle": "128", "file": "data/NLEN/homework/NLEN_128_9.csv"  },
+          { "id": "NLEN_128_10", "label": "📝 128 — Week 10", "subtitle": "128", "file": "data/NLEN/homework/NLEN_128_10.csv" },
+          { "id": "NLEN_128_11", "label": "📝 128 — Week 11", "subtitle": "128", "file": "data/NLEN/homework/NLEN_128_11.csv" },
+          { "id": "NLEN_128_12", "label": "📝 128 — Week 12", "subtitle": "128", "file": "data/NLEN/homework/NLEN_128_12.csv" },
+          { "id": "NLEN_128_13", "label": "📝 128 — Week 13", "subtitle": "128", "file": "data/NLEN/homework/NLEN_128_13.csv" }
         ],
         "Method 30M": [
           { "id": "NLEN_30M_1", "label": "📝 30M — Week 1", "subtitle": "30M", "file": "data/NLEN/homework/NLEN_30M_1.csv" }
@@ -115,6 +125,9 @@
         ],
         "Méthode 131F": [
           { "id": "NLFR_131F", "label": "📝 F131 — Week 1", "subtitle": "F 131", "file": "data/NLFR/homework/NLFR_131F.csv" }
+        ],
+        "Méthode 131G": [
+          { "id": "NLFR_131G", "label": "📝 G131 — Week 1", "subtitle": "G 131", "file": "data/NLFR/homework/NLFR_131G.csv" }
         ]
       }
     }

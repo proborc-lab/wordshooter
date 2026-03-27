@@ -1,12 +1,25 @@
 export function parseCSV(text) {
+  const unquote = s => {
+    s = s.trim();
+    return (s.startsWith('"') && s.endsWith('"')) ? s.slice(1, -1).trim() : s;
+  };
   return text.trim().split('\n')
     .filter(line => line.trim() && !line.startsWith('#'))
     .map(line => {
-      const comma = line.indexOf(',');
-      return {
-        a: line.slice(0, comma).trim(),
-        b: line.slice(comma + 1).trim()
-      };
+      line = line.trim();
+      let a, rest;
+      if (line.startsWith('"')) {
+        // Quoted first field — find its closing quote, then skip separator
+        const closeA = line.indexOf('"', 1);
+        a = line.slice(1, closeA).trim();
+        rest = line.slice(closeA + 1).replace(/^\s*,\s*/, '');
+      } else {
+        // Unquoted first field — split on first comma
+        const comma = line.indexOf(',');
+        a = line.slice(0, comma).trim();
+        rest = line.slice(comma + 1).trim();
+      }
+      return { a, b: unquote(rest) };
     });
 }
 

@@ -101,8 +101,8 @@ export class Game {
     this.janitorSpawnTimer = 20;
     // Lightning
     this.lightningPhase = 'idle';
-    this.lightningTimer = 12 + Math.random() * 6;
-    this.lightningWarningPlatform = null;
+    this.lightningTimer = 5 + Math.random() * 4;
+    this.lightningWarningPlatforms = [];
     this.lightningStrikeTimer = 0;
     // Wandering Monsters
     this.wanderSpawnTimer = 8 + Math.random() * 4;
@@ -444,9 +444,10 @@ export class Game {
     this.monsters = [];
     // Spawn boss arena platforms
     this.level.spawnBossArena(this.cameraX);
-    // Position boss above center of arena
+    // Position boss above center of arena — anchored to tier 4 so it stays
+    // reachable on large screens (fixed pixel offset rather than % of height)
     const bossX = this.cameraX + this.canvas.width * 0.55;
-    const bossY = this.canvas.height * 0.15;
+    const bossY = Math.max(20, this.level.tiers[4] - 180);
     this.boss = new Boss(bossX, bossY);
     this.audio.playBossAppear();
     // Start first round after spawn animation
@@ -463,7 +464,7 @@ export class Game {
     const word = this.words[Math.floor(Math.random() * this.words.length)];
     this.boss.headWord = this.direction === 'a-to-b' ? word.a : word.b;
     const answer = this.direction === 'a-to-b' ? word.b : word.a;
-    const misspellings = generateMisspellings(answer, 3);
+    const misspellings = generateMisspellings(answer, 3, { prioritizeVoiced: true });
     const items = shuffle([
       { word: answer, isCorrect: true },
       ...misspellings.map(m => ({ word: m, isCorrect: false }))
@@ -1108,30 +1109,30 @@ export class Game {
         if (this.lightningTimer <= 0) {
           const cands = this.level.getPlatformsInView().filter(p => !p.isGround && !p.isBossArena);
           if (cands.length) {
-            this.lightningWarningPlatform = cands[Math.floor(Math.random() * cands.length)];
+            const shuffle = [...cands].sort(() => Math.random() - 0.5);
+            this.lightningWarningPlatforms = shuffle.slice(0, Math.random() < 0.5 ? 2 : 1);
             this.lightningPhase = 'warning';
             this.lightningTimer = 1.5;
-          } else { this.lightningTimer = 12 + Math.random() * 6; }
+          } else { this.lightningTimer = 5 + Math.random() * 4; }
         }
       } else if (this.lightningPhase === 'warning') {
         this.lightningTimer -= dt;
         if (this.lightningTimer <= 0) {
           this.lightningPhase = 'strike';
           this.lightningStrikeTimer = 0.5;
-          const p = this.lightningWarningPlatform;
-          if (p) {
+          for (const p of this.lightningWarningPlatforms) {
             const onPlat = this.player.x + this.player.width > p.x &&
                            this.player.x < p.x + p.width &&
                            Math.abs(this.player.y + this.player.height - p.y) < 10;
-            if (onPlat) { this.player.vy = -700; this.player.onGround = false; }
+            if (onPlat) { this.player.vy = -700; this.player.onGround = false; break; }
           }
         }
       } else if (this.lightningPhase === 'strike') {
         this.lightningStrikeTimer -= dt;
         if (this.lightningStrikeTimer <= 0) {
           this.lightningPhase = 'idle';
-          this.lightningWarningPlatform = null;
-          this.lightningTimer = 12 + Math.random() * 6;
+          this.lightningWarningPlatforms = [];
+          this.lightningTimer = 5 + Math.random() * 4;
         }
       }
     }
@@ -1564,17 +1565,17 @@ export class Game {
     this.player.draw(ctx, this.cameraX);
 
     // Lightning warning platform flash (inside mirror transform)
-    if (this.modifier === 'lightningCrashes' && this.lightningWarningPlatform &&
+    if (this.modifier === 'lightningCrashes' && this.lightningWarningPlatforms.length &&
         this.lightningPhase === 'warning') {
-      const p = this.lightningWarningPlatform;
-      const psx = p.x - this.cameraX;
       const flashOn = Math.floor(this.lightningTimer * 6) % 2 === 0;
       ctx.save();
       ctx.strokeStyle = flashOn ? '#ffffff' : '#ffee00';
       ctx.shadowColor = flashOn ? '#ffffff' : '#ffcc00';
       ctx.shadowBlur = 18;
       ctx.lineWidth = 3;
-      ctx.strokeRect(psx, p.y, p.width, p.height);
+      for (const p of this.lightningWarningPlatforms) {
+        ctx.strokeRect(p.x - this.cameraX, p.y, p.width, p.height);
+      }
       ctx.restore();
     }
 
@@ -1678,9 +1679,7 @@ export class Game {
 
     // Lightning bolt (strike phase)
     if (this.modifier === 'lightningCrashes' &&
-        this.lightningPhase === 'strike' && this.lightningWarningPlatform) {
-      const p = this.lightningWarningPlatform;
-      const bx = p.x - this.cameraX + p.width / 2;
+        this.lightningPhase === 'strike' && this.lightningWarningPlatforms.length) {
       const alpha = this.lightningStrikeTimer / 0.5;
       ctx.save();
       ctx.globalAlpha = alpha;
@@ -1690,12 +1689,15 @@ export class Game {
       ctx.shadowColor = '#aaccff';
       ctx.shadowBlur = 24;
       ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(bx, 0);
-      ctx.lineTo(bx + 18, p.y * 0.3);
-      ctx.lineTo(bx - 14, p.y * 0.6);
-      ctx.lineTo(bx + 10, p.y);
-      ctx.stroke();
+      for (const p of this.lightningWarningPlatforms) {
+        const bx = p.x - this.cameraX + p.width / 2;
+        ctx.beginPath();
+        ctx.moveTo(bx, 0);
+        ctx.lineTo(bx + 18, p.y * 0.3);
+        ctx.lineTo(bx - 14, p.y * 0.6);
+        ctx.lineTo(bx + 10, p.y);
+        ctx.stroke();
+      }
       ctx.restore();
     }
 

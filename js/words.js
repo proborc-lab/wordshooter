@@ -88,7 +88,7 @@ const FALLBACK = {
   ]
 };
 
-export function generateMisspellings(word, count = 3) {
+export function generateMisspellings(word, count = 3, options = {}) {
   const w    = word;
   const low  = w.toLowerCase();
   const VOWELS = 'aeiouäëïöüáéíóúàèìòùâêîôûæœ';
@@ -121,7 +121,13 @@ export function generateMisspellings(word, count = 3) {
 
   // ── 4. Phonetically similar substitutions ──────────────────────────────
   // Pairs: [pattern, replacement] — applied wherever pattern occurs in word
-  const phonetic = [
+  // Boss-fight priority: voiced/unvoiced pairs that the Spelling Overlord favours
+  const bossPhonetic = options.prioritizeVoiced ? [
+    ['s', 'z'], ['z', 's'],
+    ['f', 'v'], ['v', 'f'],
+    ['g', 'c'], ['c', 'g'],
+  ] : [];
+  const phonetic = [...bossPhonetic,
     // Vowel digraphs (same sound, different spelling)
     ['ie', 'ei'], ['ei', 'ie'],
     ['ea', 'ee'], ['ee', 'ea'],

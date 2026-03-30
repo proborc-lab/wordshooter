@@ -1,4 +1,4 @@
-import { loadWordLists, fetchWordList } from './words.js';
+import { loadWordLists, fetchWordList, parseCSV } from './words.js';
 import { AudioManager } from './audio.js';
 import { Game } from './game.js';
 import * as LB from './leaderboard.js';
@@ -50,6 +50,8 @@ let selectedSpeed = 'normal';
 let _lsLangPair = '';
 let _lsCategory = '';
 let _lsSearch = '';
+let _lsMyLists = false;      // true when browsing the player's custom lists
+let _lsEditingList = null;   // 'new' = creating, 'custom_...' = editing existing
 let currentGame = null;
 let lastScore = 0;
 let lastVictory = false;
@@ -310,6 +312,13 @@ function getManifest() {
   return (wordLists && wordLists._flat) ? wordLists._flat : [];
 }
 
+// Finds a list entry from the manifest OR the player's custom lists.
+function getListEntry(id) {
+  const fromManifest = getManifest().find(e => e.id === id);
+  if (fromManifest) return fromManifest;
+  return LB.getCustomLists(selectedPlayer).find(l => l.id === id) || { label: id };
+}
+
 // Category icon lookup
 function _catIcon(cat) {
   const icons = { Theme: '🎨', Homework: '📚', 'Exam prep': '📝', CEFR: '🏆', Community: '👥' };
@@ -345,6 +354,135 @@ function _bindListPick() {
 function renderListSelect() {
   const flat    = getManifest();
   const hier    = (wordLists && wordLists._manifest) || {};
+
+  // ── Create / Edit custom list ────────────────────────────────────────────
+  if (_lsEditingList !== null) {
+    const existing = _lsEditingList !== 'new'
+      ? LB.getCustomLists(selectedPlayer).find(l => l.id === _lsEditingList)
+      : null;
+    const isEdit = !!existing;
+    const prefillWords = existing
+      ? existing.words.map(w => `${w.a},${w.b}`).join('\n')
+      : '';
+
+    showOverlay(`
+      <div class="menu-panel">
+        <div class="menu-section-title">Soldier: ${selectedPlayer}</div>
+        <div class="menu-title" style="font-size:26px;margin-bottom:6px">${isEdit ? 'EDIT MY LIST' : 'CREATE MY LIST'}</div>
+        <div class="menu-section-title">List Name</div>
+        <input class="menu-input" id="customListName" type="text" placeholder="e.g. Chapter 4 Vocab" maxlength="40" value="${isEdit ? existing.label : ''}" autocomplete="off" />
+        <div style="display:flex;gap:8px;margin-top:2px">
+          <div style="flex:1">
+            <div class="menu-section-title">Word column label</div>
+            <input class="menu-input" id="customLang1" type="text" placeholder="e.g. Dutch" maxlength="20" value="${isEdit ? existing.lang1 : ''}" autocomplete="off" />
+          </div>
+          <div style="flex:1">
+            <div class="menu-section-title">Translation label</div>
+            <input class="menu-input" id="customLang2" type="text" placeholder="e.g. English" maxlength="20" value="${isEdit ? existing.lang2 : ''}" autocomplete="off" />
+          </div>
+        </div>
+        <div class="menu-section-title" style="margin-top:10px">Word pairs — one per line: <span style="color:#a0c8a0">word,translation</span></div>
+        <textarea class="menu-input" id="customWords" placeholder="hond,dog&#10;kat,cat&#10;paard,horse" style="font-family:monospace;font-size:14px;resize:vertical;min-height:130px;width:100%;box-sizing:border-box;text-align:left;letter-spacing:0">${prefillWords}</textarea>
+        <div id="customError" style="color:#cc4444;font-size:12px;min-height:16px;margin:4px 0 0"></div>
+        <button class="menu-btn" id="saveCustomBtn" style="margin-top:6px">💾 SAVE LIST</button>
+        <button class="menu-btn back-btn" id="backBtn" style="font-size:13px">← Cancel</button>
+      </div>
+    `);
+
+    document.getElementById('saveCustomBtn').addEventListener('click', () => {
+      const name      = document.getElementById('customListName').value.trim();
+      const lang1     = document.getElementById('customLang1').value.trim() || 'Word';
+      const lang2     = document.getElementById('customLang2').value.trim() || 'Translation';
+      const rawWords  = document.getElementById('customWords').value;
+      const errorEl   = document.getElementById('customError');
+
+      if (!name) { errorEl.textContent = 'Please enter a list name.'; return; }
+      const words = parseCSV(rawWords);
+      if (words.length < 4) { errorEl.textContent = 'Please enter at least 4 word pairs (word,translation).'; return; }
+
+      const list = {
+        id:    isEdit ? existing.id : `custom_${selectedPlayer}_${Date.now()}`,
+        label: name,
+        lang1,
+        lang2,
+        words,
+      };
+      LB.saveCustomList(selectedPlayer, list);
+      // Invalidate any cached words for this list so it reloads
+      if (wordLists) delete wordLists[list.id];
+
+      _lsEditingList = null;
+      _lsMyLists = true;
+      renderListSelect();
+    });
+
+    document.getElementById('backBtn').addEventListener('click', () => {
+      _lsEditingList = null;
+      renderListSelect();
+    });
+    return;
+  }
+
+  // ── My Lists browser ─────────────────────────────────────────────────────
+  if (_lsMyLists) {
+    const customLists = LB.getCustomLists(selectedPlayer);
+    const listItems = customLists.length
+      ? customLists.map(l => `
+          <div style="display:flex;gap:6px;align-items:stretch;margin-bottom:4px">
+            <button class="menu-btn" data-list="${l.id}" style="flex:1;text-align:left;margin:0">
+              ${l.label}
+              <span style="font-size:11px;opacity:0.6;margin-left:8px">${l.lang1} ↔ ${l.lang2} · ${l.words.length} pairs</span>
+            </button>
+            <button class="menu-btn" data-edit="${l.id}" style="flex:0;padding:8px 10px;margin:0;font-size:14px" title="Edit">✏️</button>
+            <button class="menu-btn" data-delete="${l.id}" style="flex:0;padding:8px 10px;margin:0;font-size:14px" title="Delete">🗑</button>
+          </div>`)
+        .join('')
+      : '<div style="color:#4a6a4a;font-size:13px;padding:12px 0">No custom lists yet — create one!</div>';
+
+    showOverlay(`
+      <div class="menu-panel">
+        <div class="menu-section-title">Soldier: ${selectedPlayer}</div>
+        <div class="menu-title" style="font-size:28px;margin-bottom:6px">MY LISTS</div>
+        <button class="menu-btn" id="createNewBtn" style="margin-bottom:12px">➕ CREATE NEW LIST</button>
+        <div style="max-height:52vh;overflow-y:auto">${listItems}</div>
+        <button class="menu-btn back-btn" id="backBtn" style="font-size:13px">← Back</button>
+      </div>
+    `);
+
+    document.getElementById('createNewBtn').addEventListener('click', () => {
+      _lsEditingList = 'new';
+      renderListSelect();
+    });
+
+    overlay.querySelector('.menu-panel').addEventListener('click', e => {
+      const listBtn = e.target.closest('[data-list]');
+      if (listBtn) {
+        selectedList = listBtn.dataset.list;
+        _lsSearch = '';
+        // Keep _lsMyLists = true so back-navigation from DIRECTION_SELECT returns here
+        goToScreen(SCREENS.DIRECTION_SELECT);
+        return;
+      }
+      const editBtn = e.target.closest('[data-edit]');
+      if (editBtn) {
+        _lsEditingList = editBtn.dataset.edit;
+        renderListSelect();
+        return;
+      }
+      const delBtn = e.target.closest('[data-delete]');
+      if (delBtn) {
+        LB.deleteCustomList(selectedPlayer, delBtn.dataset.delete);
+        if (wordLists) delete wordLists[delBtn.dataset.delete];
+        renderListSelect();
+      }
+    });
+
+    document.getElementById('backBtn').addEventListener('click', () => {
+      _lsMyLists = false;
+      renderListSelect();
+    });
+    return;
+  }
 
   // ── Global search (≥2 chars) ────────────────────────────────────────────
   if (_lsSearch.length >= 2) {
@@ -407,17 +545,26 @@ function renderListSelect() {
       </button>`;
     }).join('');
 
+    const myListsCount = LB.getCustomLists(selectedPlayer).length;
     showOverlay(`
       <div class="menu-panel">
         <div class="menu-section-title">Soldier: ${selectedPlayer}</div>
         <div class="menu-title" style="font-size:32px;margin-bottom:6px">CHOOSE MISSION</div>
         <input class="menu-input" id="listSearch" type="search" placeholder="Search all lists…" autocomplete="off" />
+        <button class="menu-btn" id="myListsBtn" style="border-color:#88aaff;color:#88aaff;margin-bottom:4px">
+          📝 MY LISTS
+          <span style="font-size:11px;opacity:0.7;margin-left:8px">${myListsCount} list${myListsCount !== 1 ? 's' : ''}</span>
+        </button>
         <div class="menu-section-title">Language pair</div>
         ${pairBtns}
         <button class="menu-btn back-btn" id="backBtn" style="font-size:13px">← BACK</button>
       </div>
     `);
     _bindGlobalSearch();
+    document.getElementById('myListsBtn').addEventListener('click', () => {
+      _lsMyLists = true;
+      renderListSelect();
+    });
     overlay.querySelector('.menu-panel').addEventListener('click', e => {
       const btn = e.target.closest('[data-langpair]');
       if (btn) { _lsLangPair = btn.dataset.langpair; renderListSelect(); }
@@ -521,8 +668,7 @@ function renderListSelect() {
 
 // ---- DIRECTION SELECT ----
 function renderDirectionSelect() {
-  const manifest = getManifest();
-  const entry = manifest.find(e => e.id === selectedList) || { label: selectedList };
+  const entry = getListEntry(selectedList);
   const missionLabel = entry.label;
   showOverlay(`
     <div class="menu-panel">
@@ -579,7 +725,7 @@ function renderDirectionSelect() {
 
 function _renderMiniLeaderboard(listName) {
   const dirs = ['a-to-b', 'b-to-a'];
-  const entry = getManifest().find(e => e.id === listName) || {};
+  const entry = getListEntry(listName);
   const l1 = entry.lang1 || 'A';
   const l2 = entry.lang2 || 'B';
   let html = '<div style="display:flex;gap:16px;justify-content:center">';
@@ -639,7 +785,7 @@ function _advanceRound() {
 
 function _showModifierBanner(modifier, round, onDone) {
   const info = modifier ? MODIFIER_INFO[modifier] : null;
-  const listEntry = getManifest().find(e => e.id === selectedList) || {};
+  const listEntry = getListEntry(selectedList);
   const l1 = listEntry.lang1 || 'A', l2 = listEntry.lang2 || 'B';
   const dirLabel = selectedDirection === 'a-to-b' ? `${l1} → ${l2}` : `${l2} → ${l1}`;
 
@@ -697,15 +843,21 @@ async function startGame() {
 
   // Lazy-load the CSV if not yet cached
   if (!wordLists[selectedList]) {
-    ctx.fillStyle = '#0a0a0a';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#4a7a4a';
-    ctx.font = 'bold 20px monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('LOADING MISSION...', canvas.width / 2, canvas.height / 2);
-    const entry = getManifest().find(e => e.id === selectedList) || { id: selectedList };
-    wordLists[selectedList] = await fetchWordList(entry);
+    if (selectedList.startsWith('custom_')) {
+      // Custom list — words are already stored in localStorage
+      const customEntry = LB.getCustomLists(selectedPlayer).find(l => l.id === selectedList);
+      wordLists[selectedList] = customEntry ? customEntry.words : [];
+    } else {
+      ctx.fillStyle = '#0a0a0a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#4a7a4a';
+      ctx.font = 'bold 20px monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('LOADING MISSION...', canvas.width / 2, canvas.height / 2);
+      const entry = getManifest().find(e => e.id === selectedList) || { id: selectedList };
+      wordLists[selectedList] = await fetchWordList(entry);
+    }
   }
 
   // Clear canvas
@@ -719,7 +871,7 @@ async function startGame() {
   }
 
   const wordList = wordLists[selectedList];
-  const listMeta = getManifest().find(e => e.id === selectedList) || {};
+  const listMeta = getListEntry(selectedList);
 
   // SM-11: capture reference so a stale callback from a previous game is ignored
   let thisGame;
@@ -747,10 +899,9 @@ function renderGameOver() {
   const rank = board.findIndex(e => e.player === selectedPlayer && e.score === lastScore) + 1;
   const rankText = rank > 0 ? `Your rank: #${rank}` : '';
 
-  const listEntry = getManifest().find(e => e.id === selectedList) || { label: selectedList };
+  const listEntry = getListEntry(selectedList);
   const listLabel = listEntry.label;
-  const dirEntry = getManifest().find(e => e.id === selectedList) || {};
-  const l1 = dirEntry.lang1 || 'A', l2 = dirEntry.lang2 || 'B';
+  const l1 = listEntry.lang1 || 'A', l2 = listEntry.lang2 || 'B';
   const dirLabel = selectedDirection === 'a-to-b' ? `${l1} → ${l2}` : `${l2} → ${l1}`;
 
   // Undeniable Victory: player has beaten all 4 rounds
@@ -951,6 +1102,8 @@ function goToScreen(screen) {
     _lsLangPair = '';
     _lsCategory = '';
     _lsSearch = '';
+    _lsMyLists = false;
+    _lsEditingList = null;
   }
   currentScreen = screen;
   if (touchControls) {

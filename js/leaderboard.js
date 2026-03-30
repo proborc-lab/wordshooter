@@ -56,3 +56,39 @@ export function submitScore(listName, direction, player, score) {
   }
   return board;
 }
+
+// ---- Custom lists ----
+const CUSTOM_LISTS_KEY = 'wordshooter_custom_lists';
+
+export function getCustomLists(playerName) {
+  const key = `${CUSTOM_LISTS_KEY}_${playerName}`;
+  try {
+    const data = localStorage.getItem(key);
+    return data ? JSON.parse(data) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+export function saveCustomList(playerName, list) {
+  const key = `${CUSTOM_LISTS_KEY}_${playerName}`;
+  const lists = getCustomLists(playerName);
+  const idx = lists.findIndex(l => l.id === list.id);
+  if (idx >= 0) lists[idx] = list;
+  else lists.push(list);
+  try {
+    localStorage.setItem(key, JSON.stringify(lists));
+  } catch (e) {
+    console.warn('Could not save custom list:', e);
+  }
+}
+
+export function deleteCustomList(playerName, listId) {
+  const key = `${CUSTOM_LISTS_KEY}_${playerName}`;
+  const lists = getCustomLists(playerName).filter(l => l.id !== listId);
+  try {
+    localStorage.setItem(key, JSON.stringify(lists));
+  } catch (e) {
+    console.warn('Could not delete custom list:', e);
+  }
+}

@@ -95,7 +95,7 @@ export function drawHUD(ctx, gameState) {
     ctx.font = 'bold 12px monospace';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText('SHIELD', heartsX, heartsY + heartSize + 10);
+    ctx.fillText('SCHILD', heartsX, heartsY + heartSize + 10);
   }
 
   // RapidFire indicator
@@ -104,7 +104,7 @@ export function drawHUD(ctx, gameState) {
     ctx.font = 'bold 12px monospace';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText('RAPID', heartsX + (gameState.shield ? 60 : 0), heartsY + heartSize + 10);
+    ctx.fillText('SNEL', heartsX + (gameState.shield ? 60 : 0), heartsY + heartSize + 10);
   }
 
   // SpeedBoost indicator
@@ -114,7 +114,7 @@ export function drawHUD(ctx, gameState) {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     const offsetX = (gameState.shield ? 60 : 0) + (gameState.rapidFire ? 60 : 0);
-    ctx.fillText('SPEED', heartsX + offsetX, heartsY + heartSize + 10);
+    ctx.fillText('BOOST', heartsX + offsetX, heartsY + heartSize + 10);
   }
 
   // Power invincibility indicator
@@ -124,7 +124,7 @@ export function drawHUD(ctx, gameState) {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     const offX = (gameState.shield ? 60 : 0) + (gameState.rapidFire ? 60 : 0) + (gameState.speedBoost ? 60 : 0);
-    ctx.fillText(gameState.floatActive ? 'INVINCIBLE+FLOAT' : 'INVINCIBLE', heartsX + offX, heartsY + heartSize + 10);
+    ctx.fillText(gameState.floatActive ? 'ONKWETSB+ZWEEF' : 'ONKWETSBAAR', heartsX + offX, heartsY + heartSize + 10);
   }
 
   // Piercing shot indicator
@@ -134,7 +134,7 @@ export function drawHUD(ctx, gameState) {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     const offX = (gameState.shield ? 60 : 0) + (gameState.rapidFire ? 60 : 0) + (gameState.speedBoost ? 60 : 0) + (gameState.powerInvincible ? 110 : 0);
-    ctx.fillText('PIERCE', heartsX + offX, heartsY + heartSize + 10);
+    ctx.fillText('DOORBOOR', heartsX + offX, heartsY + heartSize + 10);
   }
 
   // === Score (top-right) ===
@@ -147,7 +147,7 @@ export function drawHUD(ctx, gameState) {
   // Score label
   ctx.fillStyle = '#6a8a6a';
   ctx.font = '11px monospace';
-  ctx.fillText('SCORE', cw - 14, 38);
+  ctx.fillText('SCORE', cw - 14, 38);  // international word
 
   // Combo/Multiplier
   if (gameState.combo > 1) {
@@ -185,21 +185,21 @@ export function drawHUD(ctx, gameState) {
     ctx.font = 'bold 10px monospace';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(`ROUND ${gameState.round} / 4`, 14, 78);
+    ctx.fillText(`RONDE ${gameState.round} / 4`, 14, 78);
   }
 
   if (gameState.modifier) {
     const modifierLabels = {
-      boxesMove:         '⇄ BOXES MOVE',
-      mirrorWorld:       '↔ MIRROR WORLD',
-      doubleTrouble:     '✦ DOUBLE TROUBLE',
-      noPeek:            '👁 NO-PEEK',
-      lowGravity:        '↑ LOW GRAVITY',
-      blackout:          '🌑 BLACKOUT',
-      boxImpostors:      '🎭 IMPOSTORS',
-      janitor:           '🧹 JANITOR',
-      lightningCrashes:  '⚡ LIGHTNING',
-      wanderingMonsters: '👾 WANDERERS',
+      boxesMove:         '⇄ DOZEN BEWEG',
+      mirrorWorld:       '↔ SPIEGELWERELD',
+      doubleTrouble:     '✦ DUBBEL SCHOT',
+      noPeek:            '👁 GEEN KIJKEN',
+      lowGravity:        '↑ LICHTE ZWAARTEKR',
+      blackout:          '🌑 STROOMUITVAL',
+      boxImpostors:      '🎭 VALSE DOZEN',
+      janitor:           '🧹 CONCIËRGE',
+      lightningCrashes:  '⚡ BLIKSEM',
+      wanderingMonsters: '👾 DWAALMONSTERS',
     };
     const label = modifierLabels[gameState.modifier] || gameState.modifier.toUpperCase();
     ctx.fillStyle = '#ff88ff';
@@ -265,7 +265,7 @@ export function drawHUD(ctx, gameState) {
     ctx.font = 'bold 11px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('UPGRADE!', cw / 2, by + 14);
+    ctx.fillText('UPGRADE!', cw / 2, by + 14);  // international word
 
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 18px monospace';
@@ -298,7 +298,7 @@ export function drawHUD(ctx, gameState) {
     ctx.font = 'bold 11px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('POWER-UP!', cw / 2, by + 14);
+    ctx.fillText('POWER-UP!', cw / 2, by + 14);  // international word
 
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 16px monospace';
@@ -319,7 +319,7 @@ export function drawHUD(ctx, gameState) {
     ctx.textBaseline = 'middle';
     ctx.shadowColor = '#ffaa00';
     ctx.shadowBlur = 15;
-    ctx.fillText(`🔥 ${gameState.combo} STREAK!`, cw / 2, ch / 2 - 120);
+    ctx.fillText(`🔥 ${gameState.combo} OP RIJ!`, cw / 2, ch / 2 - 120);
     ctx.shadowBlur = 0;
 
     ctx.restore();
@@ -429,7 +429,7 @@ export function drawBossHUD(ctx, boss) {
   ctx.shadowColor = '#000';
   ctx.shadowBlur = 4;
   ctx.fillStyle = isP2 ? '#ff8844' : '#ffaacc';
-  const label = isP2 ? '\u26A1 SPELLING OVERLORD — ENRAGED \u26A1' : '\u26A1 SPELLING OVERLORD \u26A1';
+  const label = isP2 ? '\u26A1 SPELLINGSHEERSER — WOEDEND \u26A1' : '\u26A1 SPELLINGSHEERSER \u26A1';
   ctx.fillText(label, cw / 2, barY + barH / 2);
   ctx.restore();
 
@@ -444,7 +444,7 @@ export function drawBossHUD(ctx, boss) {
     ctx.textBaseline = 'top';
     ctx.shadowColor = '#00ff00';
     ctx.shadowBlur = 8;
-    ctx.fillText(`\u25BA\u25BA SHOOT THE BOSS! ${Math.ceil(boss.vulnerableTimer)}s \u25C4\u25C4`, cw / 2, barY + barH + 3);
+    ctx.fillText(`\u25BA\u25BA SCHIET DE BAAS! ${Math.ceil(boss.vulnerableTimer)}s \u25C4\u25C4`, cw / 2, barY + barH + 3);
     ctx.restore();
   }
 }

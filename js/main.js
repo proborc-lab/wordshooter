@@ -193,13 +193,13 @@ function renderTitle() {
     ctx.font = '16px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('Vocabulary Shooting Drills', cw / 2, ch / 2 + 90);
+    ctx.fillText('Woordenschat Schietoefeningen', cw / 2, ch / 2 + 90);
 
     // Blinking start prompt
     if (Math.floor(titleAnim * 2) % 2 === 0) {
       ctx.fillStyle = '#a0e080';
       ctx.font = 'bold 20px monospace';
-      ctx.fillText('[ PRESS ANY KEY OR CLICK TO START ]', cw / 2, ch / 2 + 120);
+      ctx.fillText('[ DRUK OP EEN TOETS OF KLIK OM TE STARTEN ]', cw / 2, ch / 2 + 120);
     }
 
     // Version
@@ -250,16 +250,16 @@ function renderPlayerSelect() {
     <div class="menu-panel">
       <div class="menu-title">UITGELEERD</div>
       <div class="menu-subtitle">?</div>
-      <div class="menu-section-title">Select or Create Player</div>
-      <input class="menu-input" id="playerInput" type="text" placeholder="Enter name..." maxlength="20" autocomplete="off" />
-      <button class="menu-btn" id="playBtn">▶ PLAY AS NEW</button>
+      <div class="menu-section-title">Selecteer of maak een speler</div>
+      <input class="menu-input" id="playerInput" type="text" placeholder="Naam invoeren..." maxlength="20" autocomplete="off" />
+      <button class="menu-btn" id="playBtn">▶ SPEEL ALS NIEUW</button>
       ${players.length > 0 ? `
-        <div class="menu-section-title">Existing Players</div>
+        <div class="menu-section-title">Bestaande spelers</div>
         <div class="player-list" id="playerList">
           ${players.map(p => `<button class="menu-btn" data-player="${p}">${p}</button>`).join('')}
         </div>
       ` : ''}
-      <button class="menu-btn" id="lbBtn" style="margin-top:20px; font-size:13px">📊 LEADERBOARD</button>
+      <button class="menu-btn" id="lbBtn" style="margin-top:20px; font-size:13px">📊 RANGLIJST</button>
     </div>
   `);
 
@@ -368,24 +368,24 @@ function renderListSelect() {
     showOverlay(`
       <div class="menu-panel">
         <div class="menu-section-title">Soldier: ${selectedPlayer}</div>
-        <div class="menu-title" style="font-size:26px;margin-bottom:6px">${isEdit ? 'EDIT MY LIST' : 'CREATE MY LIST'}</div>
-        <div class="menu-section-title">List Name</div>
-        <input class="menu-input" id="customListName" type="text" placeholder="e.g. Chapter 4 Vocab" maxlength="40" value="${isEdit ? existing.label : ''}" autocomplete="off" />
+        <div class="menu-title" style="font-size:26px;margin-bottom:6px">${isEdit ? 'MIJN LIJST BEWERKEN' : 'MIJN LIJST AANMAKEN'}</div>
+        <div class="menu-section-title">Lijstnaam</div>
+        <input class="menu-input" id="customListName" type="text" placeholder="bijv. Hoofdstuk 4 Woorden" maxlength="40" value="${isEdit ? existing.label : ''}" autocomplete="off" />
         <div style="display:flex;gap:8px;margin-top:2px">
           <div style="flex:1">
-            <div class="menu-section-title">Word column label</div>
-            <input class="menu-input" id="customLang1" type="text" placeholder="e.g. Dutch" maxlength="20" value="${isEdit ? existing.lang1 : ''}" autocomplete="off" />
+            <div class="menu-section-title">Label kolom 1</div>
+            <input class="menu-input" id="customLang1" type="text" placeholder="bijv. Nederlands" maxlength="20" value="${isEdit ? existing.lang1 : ''}" autocomplete="off" />
           </div>
           <div style="flex:1">
-            <div class="menu-section-title">Translation label</div>
-            <input class="menu-input" id="customLang2" type="text" placeholder="e.g. English" maxlength="20" value="${isEdit ? existing.lang2 : ''}" autocomplete="off" />
+            <div class="menu-section-title">Label vertaling</div>
+            <input class="menu-input" id="customLang2" type="text" placeholder="bijv. Engels" maxlength="20" value="${isEdit ? existing.lang2 : ''}" autocomplete="off" />
           </div>
         </div>
-        <div class="menu-section-title" style="margin-top:10px">Word pairs — one per line: <span style="color:#a0c8a0">word,translation</span></div>
+        <div class="menu-section-title" style="margin-top:10px">Woordparen — één per regel: <span style="color:#a0c8a0">woord,vertaling</span></div>
         <textarea class="menu-input" id="customWords" placeholder="hond,dog&#10;kat,cat&#10;paard,horse" style="font-family:monospace;font-size:14px;resize:vertical;min-height:130px;width:100%;box-sizing:border-box;text-align:left;letter-spacing:0">${prefillWords}</textarea>
         <div id="customError" style="color:#cc4444;font-size:12px;min-height:16px;margin:4px 0 0"></div>
-        <button class="menu-btn" id="saveCustomBtn" style="margin-top:6px">💾 SAVE LIST</button>
-        <button class="menu-btn back-btn" id="backBtn" style="font-size:13px">← Cancel</button>
+        <button class="menu-btn" id="saveCustomBtn" style="margin-top:6px">💾 LIJST OPSLAAN</button>
+        <button class="menu-btn back-btn" id="backBtn" style="font-size:13px">← Annuleren</button>
       </div>
     `);
 
@@ -396,9 +396,9 @@ function renderListSelect() {
       const rawWords  = document.getElementById('customWords').value;
       const errorEl   = document.getElementById('customError');
 
-      if (!name) { errorEl.textContent = 'Please enter a list name.'; return; }
+      if (!name) { errorEl.textContent = 'Voer een lijstnaam in.'; return; }
       const words = parseCSV(rawWords);
-      if (words.length < 4) { errorEl.textContent = 'Please enter at least 4 word pairs (word,translation).'; return; }
+      if (words.length < 4) { errorEl.textContent = 'Voer minimaal 4 woordparen in (woord,vertaling).'; return; }
 
       const list = {
         id:    isEdit ? existing.id : `custom_${selectedPlayer}_${Date.now()}`,
@@ -437,15 +437,15 @@ function renderListSelect() {
             <button class="menu-btn" data-delete="${l.id}" style="flex:0;padding:8px 10px;margin:0;font-size:14px" title="Delete">🗑</button>
           </div>`)
         .join('')
-      : '<div style="color:#4a6a4a;font-size:13px;padding:12px 0">No custom lists yet — create one!</div>';
+      : '<div style="color:#4a6a4a;font-size:13px;padding:12px 0">Nog geen eigen lijsten — maak er één aan!</div>';
 
     showOverlay(`
       <div class="menu-panel">
         <div class="menu-section-title">Soldier: ${selectedPlayer}</div>
-        <div class="menu-title" style="font-size:28px;margin-bottom:6px">MY LISTS</div>
-        <button class="menu-btn" id="createNewBtn" style="margin-bottom:12px">➕ CREATE NEW LIST</button>
+        <div class="menu-title" style="font-size:28px;margin-bottom:6px">MIJN LIJSTEN</div>
+        <button class="menu-btn" id="createNewBtn" style="margin-bottom:12px">➕ NIEUWE LIJST AANMAKEN</button>
         <div style="max-height:52vh;overflow-y:auto">${listItems}</div>
-        <button class="menu-btn back-btn" id="backBtn" style="font-size:13px">← Back</button>
+        <button class="menu-btn back-btn" id="backBtn" style="font-size:13px">← Terug</button>
       </div>
     `);
 
@@ -500,16 +500,16 @@ function renderListSelect() {
             ${e.label}
             <span style="font-size:11px;opacity:0.6;margin-left:8px">${e.langPair || ''} · ${e.category || ''}</span>
           </button>`).join('')
-      : '<div style="color:#4a6a4a;font-size:13px;padding:16px 0">No results found</div>';
+      : '<div style="color:#4a6a4a;font-size:13px;padding:16px 0">Geen resultaten gevonden</div>';
 
     showOverlay(`
       <div class="menu-panel">
-        <div class="menu-section-title">Soldier: ${selectedPlayer}</div>
-        <div class="menu-title" style="font-size:32px;margin-bottom:6px">CHOOSE MISSION</div>
-        <input class="menu-input" id="listSearch" type="search" placeholder="Search all lists…" autocomplete="off" />
-        <div style="color:#6a9a6a;font-size:12px;margin:4px 0 12px;letter-spacing:1px">${results.length} result${results.length !== 1 ? 's' : ''}</div>
+        <div class="menu-section-title">Soldaat: ${selectedPlayer}</div>
+        <div class="menu-title" style="font-size:32px;margin-bottom:6px">KIES MISSIE</div>
+        <input class="menu-input" id="listSearch" type="search" placeholder="Doorzoek alle lijsten…" autocomplete="off" />
+        <div style="color:#6a9a6a;font-size:12px;margin:4px 0 12px;letter-spacing:1px">${results.length} resultaat${results.length !== 1 ? 'en' : ''}</div>
         <div style="max-height:52vh;overflow-y:auto">${resultBtns}</div>
-        <button class="menu-btn back-btn" id="backBtn" style="font-size:13px">✕ Clear search</button>
+        <button class="menu-btn back-btn" id="backBtn" style="font-size:13px">✕ Zoekopdracht wissen</button>
       </div>
     `);
     _bindGlobalSearch();
@@ -548,16 +548,16 @@ function renderListSelect() {
     const myListsCount = LB.getCustomLists(selectedPlayer).length;
     showOverlay(`
       <div class="menu-panel">
-        <div class="menu-section-title">Soldier: ${selectedPlayer}</div>
-        <div class="menu-title" style="font-size:32px;margin-bottom:6px">CHOOSE MISSION</div>
-        <input class="menu-input" id="listSearch" type="search" placeholder="Search all lists…" autocomplete="off" />
+        <div class="menu-section-title">Soldaat: ${selectedPlayer}</div>
+        <div class="menu-title" style="font-size:32px;margin-bottom:6px">KIES MISSIE</div>
+        <input class="menu-input" id="listSearch" type="search" placeholder="Doorzoek alle lijsten…" autocomplete="off" />
         <button class="menu-btn" id="myListsBtn" style="border-color:#88aaff;color:#88aaff;margin-bottom:4px">
-          📝 MY LISTS
-          <span style="font-size:11px;opacity:0.7;margin-left:8px">${myListsCount} list${myListsCount !== 1 ? 's' : ''}</span>
+          📝 MIJN LIJSTEN
+          <span style="font-size:11px;opacity:0.7;margin-left:8px">${myListsCount} lijst${myListsCount !== 1 ? 'en' : ''}</span>
         </button>
-        <div class="menu-section-title">Language pair</div>
+        <div class="menu-section-title">Taalcombinatie</div>
         ${pairBtns}
-        <button class="menu-btn back-btn" id="backBtn" style="font-size:13px">← BACK</button>
+        <button class="menu-btn back-btn" id="backBtn" style="font-size:13px">← TERUG</button>
       </div>
     `);
     _bindGlobalSearch();
@@ -592,11 +592,11 @@ function renderListSelect() {
     showOverlay(`
       <div class="menu-panel">
         <div class="menu-section-title">${lang1} ↔ ${lang2}</div>
-        <div class="menu-title" style="font-size:32px;margin-bottom:6px">CHOOSE MISSION</div>
-        <input class="menu-input" id="listSearch" type="search" placeholder="Search all lists…" autocomplete="off" />
-        <div class="menu-section-title">Category</div>
+        <div class="menu-title" style="font-size:32px;margin-bottom:6px">KIES MISSIE</div>
+        <input class="menu-input" id="listSearch" type="search" placeholder="Doorzoek alle lijsten…" autocomplete="off" />
+        <div class="menu-section-title">Categorie</div>
         ${catBtns}
-        <button class="menu-btn back-btn" id="backBtn" style="font-size:13px">← Language</button>
+        <button class="menu-btn back-btn" id="backBtn" style="font-size:13px">← Taal</button>
       </div>
     `);
     _bindGlobalSearch();
@@ -636,10 +636,10 @@ function renderListSelect() {
   showOverlay(`
     <div class="menu-panel">
       <div class="menu-section-title">${lang1} ↔ ${lang2} › ${_catIcon(_lsCategory)} ${_lsCategory}</div>
-      <div class="menu-title" style="font-size:32px;margin-bottom:6px">CHOOSE MISSION</div>
-      <input class="menu-input" id="listSearch" type="search" placeholder="Search in ${_lsCategory}…" autocomplete="off" />
+      <div class="menu-title" style="font-size:32px;margin-bottom:6px">KIES MISSIE</div>
+      <input class="menu-input" id="listSearch" type="search" placeholder="Zoek in ${_lsCategory}…" autocomplete="off" />
       <div id="listItems" style="max-height:52vh;overflow-y:auto">${listHtml}</div>
-      <button class="menu-btn back-btn" id="backBtn" style="font-size:13px">← Category</button>
+      <button class="menu-btn back-btn" id="backBtn" style="font-size:13px">← Categorie</button>
     </div>
   `);
 
@@ -672,30 +672,30 @@ function renderDirectionSelect() {
   const missionLabel = entry.label;
   showOverlay(`
     <div class="menu-panel">
-      <div class="menu-section-title">Mission: ${missionLabel}</div>
-      <div class="menu-title" style="font-size:32px;margin-bottom:6px">DIRECTION</div>
-      <div class="menu-subtitle">Which way to translate?</div>
+      <div class="menu-section-title">Missie: ${missionLabel}</div>
+      <div class="menu-title" style="font-size:32px;margin-bottom:6px">RICHTING</div>
+      <div class="menu-subtitle">Welke vertaalrichting?</div>
       <button class="menu-btn" data-dir="a-to-b">${entry.lang1 || 'A'} → ${entry.lang2 || 'B'}</button>
       <button class="menu-btn" data-dir="b-to-a">${entry.lang2 || 'B'} → ${entry.lang1 || 'A'}</button>
-      <div class="menu-section-title" style="margin-top:24px">Game Speed</div>
+      <div class="menu-section-title" style="margin-top:24px">Spelsnelheid</div>
       <div style="display:flex;gap:8px;justify-content:center;margin-bottom:16px">
-        <button class="menu-btn speed-btn${selectedSpeed==='super_easy'?' selected':''}" data-speed="super_easy" style="flex:1;font-size:13px">🐸 Frog</button>
-        <button class="menu-btn speed-btn${selectedSpeed==='slow'?' selected':''}" data-speed="slow"  style="flex:1;font-size:13px">🐢 Turtle</button>
-        <button class="menu-btn speed-btn${selectedSpeed==='normal'?' selected':''}" data-speed="normal" style="flex:1;font-size:13px">🐅 Tiger</button>
-        <button class="menu-btn speed-btn${selectedSpeed==='fast'?' selected':''}" data-speed="fast"  style="flex:1;font-size:13px">🦅 Falcon</button>
+        <button class="menu-btn speed-btn${selectedSpeed==='super_easy'?' selected':''}" data-speed="super_easy" style="flex:1;font-size:13px">🐸 Kikker</button>
+        <button class="menu-btn speed-btn${selectedSpeed==='slow'?' selected':''}" data-speed="slow"  style="flex:1;font-size:13px">🐢 Schildpad</button>
+        <button class="menu-btn speed-btn${selectedSpeed==='normal'?' selected':''}" data-speed="normal" style="flex:1;font-size:13px">🐅 Tijger</button>
+        <button class="menu-btn speed-btn${selectedSpeed==='fast'?' selected':''}" data-speed="fast"  style="flex:1;font-size:13px">🦅 Valk</button>
       </div>
-      <div class="menu-section-title" style="margin-top:24px">Controls</div>
+      <div class="menu-section-title" style="margin-top:24px">Besturing</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 16px;font-size:12px;color:#8ab08a;text-align:left;margin:0 8px 16px">
-        <span><kbd style="color:#c0e090">← → / A D</kbd> Move</span>
-        <span><kbd style="color:#c0e090">Z / Ctrl / Click</kbd> Shoot</span>
-        <span><kbd style="color:#c0e090">↑ / W / Space</kbd> Jump</span>
-        <span><kbd style="color:#c0e090">Shift</kbd> Knife (melee)</span>
-        <span><kbd style="color:#c0e090">double jump</kbd> in the air</span>
-        <span><kbd style="color:#c0e090">P / ESC</kbd> Pause</span>
+        <span><kbd style="color:#c0e090">← → / A D</kbd> Bewegen</span>
+        <span><kbd style="color:#c0e090">Z / Ctrl / Klik</kbd> Schieten</span>
+        <span><kbd style="color:#c0e090">↑ / W / Spatie</kbd> Springen</span>
+        <span><kbd style="color:#c0e090">Shift</kbd> Mes (hand-tot-hand)</span>
+        <span><kbd style="color:#c0e090">dubbele sprong</kbd> in de lucht</span>
+        <span><kbd style="color:#c0e090">P / ESC</kbd> Pauzeren</span>
       </div>
-      <div class="menu-section-title">High Scores</div>
+      <div class="menu-section-title">Topscores</div>
       ${_renderMiniLeaderboard(selectedList)}
-      <button class="menu-btn back-btn" id="backBtn" style="font-size:13px">← BACK</button>
+      <button class="menu-btn back-btn" id="backBtn" style="font-size:13px">← TERUG</button>
     </div>
   `);
 
@@ -735,7 +735,7 @@ function _renderMiniLeaderboard(listName) {
     html += `<div style="flex:1">
       <div style="font-size:11px;color:#6a9a6a;margin-bottom:6px">${label}</div>`;
     if (board.length === 0) {
-      html += '<div style="color:#333;font-size:12px">No scores yet</div>';
+      html += '<div style="color:#333;font-size:12px">Nog geen scores</div>';
     } else {
       board.slice(0, 3).forEach((entry, i) => {
         const medals = ['🥇','🥈','🥉'];
@@ -750,16 +750,16 @@ function _renderMiniLeaderboard(listName) {
 
 // ---- BONUS ROUND PROGRESSION ----
 const MODIFIER_INFO = {
-  boxesMove:         { icon: '⇄', name: 'BOXES MOVE',          desc: 'The answer boxes slide back and forth — aim carefully!' },
-  mirrorWorld:       { icon: '↔', name: 'MIRROR WORLD',        desc: 'Left and right are swapped. Your brain will fight you.' },
-  doubleTrouble:     { icon: '✦', name: 'DOUBLE TROUBLE',      desc: 'The correct box needs two hits before it counts.' },
-  noPeek:            { icon: '👁', name: 'NO-PEEK',             desc: 'The prompt vanishes after 2.5 seconds. Remember it fast!' },
-  lowGravity:        { icon: '↑', name: 'LOW GRAVITY',         desc: 'Lighter jumps — platforms feel further apart.' },
-  blackout:          { icon: '🌑', name: 'BLACKOUT',            desc: 'Every 8 seconds the screen goes dark. A small glow around you remains.' },
-  boxImpostors:      { icon: '🎭', name: 'BOX IMPOSTORS',       desc: 'One wrong box is wearing a disguise. The real answer has a subtle tell.' },
-  janitor:           { icon: '🧹', name: 'THE JANITOR',          desc: 'A mop-wielding NPC strolls through, erasing wrong boxes. Knife him to stun him.' },
-  lightningCrashes:  { icon: '⚡', name: 'LIGHTNING CRASHES',   desc: 'A platform flashes yellow — then a bolt strikes. Stand on it for a free launch.' },
-  wanderingMonsters: { icon: '👾', name: 'WANDERING MONSTERS',  desc: 'Random enemies wander in from the right every 8–12 seconds.' },
+  boxesMove:         { icon: '⇄', name: 'DOZEN BEWEGEN',        desc: 'De antwoorddozen schuiven heen en weer — goed mikken!' },
+  mirrorWorld:       { icon: '↔', name: 'SPIEGELWERELD',        desc: 'Links en rechts zijn omgewisseld. Je hersenen gaan in de war.' },
+  doubleTrouble:     { icon: '✦', name: 'DUBBEL SCHOT',         desc: 'Het juiste antwoord heeft twee treffers nodig.' },
+  noPeek:            { icon: '👁', name: 'GEEN KIJKEN',          desc: 'Het woord verdwijnt na 2,5 seconden. Onthoud het snel!' },
+  lowGravity:        { icon: '↑', name: 'LICHTE ZWAARTEKRACHT', desc: 'Lichtere sprongen — de platforms liggen verder van elkaar.' },
+  blackout:          { icon: '🌑', name: 'STROOMUITVAL',         desc: 'Elke 8 seconden wordt het scherm donker. Er blijft een kleine gloed om je heen.' },
+  boxImpostors:      { icon: '🎭', name: 'VALSE DOZEN',          desc: 'Eén foute doos vermomt zich. Het echte antwoord heeft een subtiel teken.' },
+  janitor:           { icon: '🧹', name: 'DE CONCIËRGE',         desc: 'Een dweiler-zwaaiende NPC loopt langs en wist foute dozen. Mes hem om hem te stoppen.' },
+  lightningCrashes:  { icon: '⚡', name: 'BLIKSEMINSLAG',        desc: 'Een platform knippert geel — dan slaat de bliksem in. Ga erop staan voor een gratis lancering.' },
+  wanderingMonsters: { icon: '👾', name: 'RONDDOLENDE MONSTERS', desc: 'Willekeurige vijanden dwalen elke 8–12 seconden van rechts binnen.' },
 };
 
 function _advanceRound() {
@@ -795,15 +795,15 @@ function _showModifierBanner(modifier, round, onDone) {
     <div style="font-size:15px;color:#c0ffc0;margin-bottom:20px;line-height:1.5">${info.desc}</div>
   ` : `
     <div style="font-size:64px;margin:8px 0;line-height:1">↔</div>
-    <div style="font-size:28px;font-weight:bold;color:#44aaff;letter-spacing:3px;margin-bottom:12px">REVERSED DIRECTION</div>
-    <div style="font-size:15px;color:#aaddff;margin-bottom:20px;line-height:1.5">Translate ${dirLabel} — the other way around.</div>
+    <div style="font-size:28px;font-weight:bold;color:#44aaff;letter-spacing:3px;margin-bottom:12px">OMGEKEERDE RICHTING</div>
+    <div style="font-size:15px;color:#aaddff;margin-bottom:20px;line-height:1.5">Vertaal ${dirLabel} — de andere kant op.</div>
   `;
 
   showOverlay(`
     <div style="text-align:center;padding:40px 32px;max-width:480px">
-      <div style="font-size:12px;color:#6a9a6a;letter-spacing:3px;margin-bottom:16px">ROUND ${round} / 4 — BONUS MISSION UNLOCKED</div>
+      <div style="font-size:12px;color:#6a9a6a;letter-spacing:3px;margin-bottom:16px">RONDE ${round} / 4 — BONUSMISSIE VRIJGESPEELD</div>
       ${modifierBlock}
-      <div style="font-size:12px;color:#4a7a4a;letter-spacing:2px" id="banner-skip">TAP OR WAIT...</div>
+      <div style="font-size:12px;color:#4a7a4a;letter-spacing:2px" id="banner-skip">TIK OF WACHT...</div>
     </div>
   `);
 
@@ -812,7 +812,7 @@ function _showModifierBanner(modifier, round, onDone) {
 
   const tick = setInterval(() => {
     remaining--;
-    if (skipEl) skipEl.textContent = remaining > 0 ? `TAP OR WAIT ${remaining}...` : '';
+    if (skipEl) skipEl.textContent = remaining > 0 ? `TIK OF WACHT ${remaining}...` : '';
     if (remaining <= 0) {
       clearInterval(tick);
       onDone();
@@ -897,7 +897,7 @@ async function startGame() {
 function renderGameOver() {
   const board = LB.getLeaderboard(selectedList, selectedDirection);
   const rank = board.findIndex(e => e.player === selectedPlayer && e.score === lastScore) + 1;
-  const rankText = rank > 0 ? `Your rank: #${rank}` : '';
+  const rankText = rank > 0 ? `Jouw positie: #${rank}` : '';
 
   const listEntry = getListEntry(selectedList);
   const listLabel = listEntry.label;
@@ -910,42 +910,42 @@ function renderGameOver() {
   const offerBonus = lastVictory && currentRound < 4;
 
   const roundLabels = {
-    2: `Bonus Round: <span style="color:#ff88ff">${_modifierDisplayName(activeModifier) || '???'}</span>`,
-    3: 'Round 3: <span style="color:#44aaff">Reversed Direction</span>',
-    4: `Final Round: <span style="color:#ff88ff">${_modifierDisplayName(activeModifier) || '???'}</span> + Reversed`,
+    2: `Bonusronde: <span style="color:#ff88ff">${_modifierDisplayName(activeModifier) || '???'}</span>`,
+    3: 'Ronde 3: <span style="color:#44aaff">Omgekeerde richting</span>',
+    4: `Laatste ronde: <span style="color:#ff88ff">${_modifierDisplayName(activeModifier) || '???'}</span> + Omgekeerd`,
   };
   const nextRoundLabel = roundLabels[currentRound + 1] || '';
 
   const countdownHtml = offerBonus ? `
     <div id="bonus-countdown-wrap">
       <div id="bonus-countdown">10</div>
-      <div id="bonus-countdown-label">🎁 Click to unlock Bonus Mission!</div>
+      <div id="bonus-countdown-label">🎁 Klik om de Bonusmissie te ontgrendelen!</div>
       <div style="font-size:12px;color:#88cc88;margin-top:4px">${nextRoundLabel}</div>
     </div>
   ` : '';
 
   const trueVictoryHtml = trueVictory ? `
-    <div style="color:#ffd700;font-size:38px;font-weight:bold;letter-spacing:3px;margin:8px 0;text-shadow:0 0 24px #ffaa00">UNDENIABLE VICTORY!</div>
-    <div style="color:#aaffcc;font-size:14px;margin-bottom:16px">The Spelling Overlord has been mastered in all four rounds!</div>
-    <div style="color:#88ccff;font-size:13px;margin-bottom:20px;font-style:italic">Are you strong enough to face it again?</div>
-    <button class="menu-btn" id="playAgainBtn" style="border-color:#ffd700;color:#ffd700">▶ FACE IT AGAIN (Round 1)</button>
+    <div style="color:#ffd700;font-size:38px;font-weight:bold;letter-spacing:3px;margin:8px 0;text-shadow:0 0 24px #ffaa00">ONBETWISTBARE OVERWINNING!</div>
+    <div style="color:#aaffcc;font-size:14px;margin-bottom:16px">De Spellingsheerser is in alle vier de ronden verslagen!</div>
+    <div style="color:#88ccff;font-size:13px;margin-bottom:20px;font-style:italic">Ben je sterk genoeg om het opnieuw aan te gaan?</div>
+    <button class="menu-btn" id="playAgainBtn" style="border-color:#ffd700;color:#ffd700">▶ OPNIEUW BEGINNEN (Ronde 1)</button>
   ` : `
-    <button class="menu-btn" id="playAgainBtn">▶ PLAY AGAIN</button>
+    <button class="menu-btn" id="playAgainBtn">▶ OPNIEUW SPELEN</button>
   `;
 
   showOverlay(`
     <div class="menu-panel">
       <div class="menu-title" style="color:${lastVictory ? '#44ff44' : '#cc2222'};font-size:36px">
-        ${lastVictory ? '★ MISSION COMPLETE' : '✗ GAME OVER'}
+        ${lastVictory ? '★ MISSIE VOLTOOID' : '✗ SPEL VOORBIJ'}
       </div>
       <div class="menu-subtitle">${listLabel} · ${dirLabel}</div>
       <div style="color:#a0e080;font-size:28px;margin:16px 0;font-weight:bold">${lastScore} pts</div>
       ${rankText ? `<div style="color:#ffdd00;font-size:14px;margin-bottom:12px">${rankText}</div>` : ''}
       ${countdownHtml}
       ${trueVictoryHtml}
-      <button class="menu-btn" id="changeListBtn">🔄 CHANGE MISSION</button>
-      <button class="menu-btn" id="lbBtn2">📊 LEADERBOARD</button>
-      <button class="menu-btn back-btn" id="titleBtn">⌂ MAIN MENU</button>
+      <button class="menu-btn" id="changeListBtn">🔄 ANDERE MISSIE</button>
+      <button class="menu-btn" id="lbBtn2">📊 RANGLIJST</button>
+      <button class="menu-btn back-btn" id="titleBtn">⌂ HOOFDMENU</button>
     </div>
   `);
 
@@ -998,16 +998,16 @@ function renderGameOver() {
 
 function _modifierDisplayName(mod) {
   const names = {
-    boxesMove:         'Boxes Move',
-    mirrorWorld:       'Mirror World',
-    doubleTrouble:     'Double Trouble',
-    noPeek:            'No-Peek',
-    lowGravity:        'Low Gravity',
-    blackout:          'Blackout',
-    boxImpostors:      'Box Impostors',
-    janitor:           'The Janitor',
-    lightningCrashes:  'Lightning Crashes',
-    wanderingMonsters: 'Wandering Monsters',
+    boxesMove:         'Dozen Bewegen',
+    mirrorWorld:       'Spiegelwereld',
+    doubleTrouble:     'Dubbel Schot',
+    noPeek:            'Geen Kijken',
+    lowGravity:        'Lichte Zwaartekracht',
+    blackout:          'Stroomuitval',
+    boxImpostors:      'Valse Dozen',
+    janitor:           'De Conciërge',
+    lightningCrashes:  'Blikseminslag',
+    wanderingMonsters: 'Ronddolende Monsters',
   };
   return names[mod] || null;
 }
@@ -1038,7 +1038,7 @@ function renderLeaderboard() {
         data-tab="${id}">${listLabels[list]} ${dirLabels[dir]}</button>`;
 
       const rows = board.length === 0
-        ? '<tr><td colspan="3" style="color:#333;text-align:center">No scores</td></tr>'
+        ? '<tr><td colspan="3" style="color:#333;text-align:center">Nog geen scores</td></tr>'
         : board.map((e, i) => `
             <tr>
               <td>${i + 1}.</td>
@@ -1050,7 +1050,7 @@ function renderLeaderboard() {
       contentHtml += `
         <div class="lb-content" id="tab_${id}" style="display:${first ? 'block' : 'none'}">
           <table class="leaderboard-table">
-            <thead><tr><th>#</th><th>Player</th><th style="text-align:right">Score</th><th style="text-align:right">Date</th></tr></thead>
+            <thead><tr><th>#</th><th>Speler</th><th style="text-align:right">Score</th><th style="text-align:right">Datum</th></tr></thead>
             <tbody>${rows}</tbody>
           </table>
         </div>`;
@@ -1060,12 +1060,12 @@ function renderLeaderboard() {
 
   showOverlay(`
     <div class="menu-panel" style="max-height:90vh;overflow-y:auto">
-      <div class="menu-title" style="font-size:28px">LEADERBOARD</div>
+      <div class="menu-title" style="font-size:28px">RANGLIJST</div>
       <div style="display:flex;flex-wrap:wrap;gap:4px;margin:12px 0;justify-content:center">
         ${tabsHtml}
       </div>
       ${contentHtml}
-      <button class="menu-btn back-btn" id="backBtn">← BACK</button>
+      <button class="menu-btn back-btn" id="backBtn">← TERUG</button>
     </div>
   `);
 

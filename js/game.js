@@ -5,11 +5,11 @@ import { shuffle, generateMisspellings } from './words.js';
 import { drawHUD, drawRedOverlay, drawBossHUD } from './ui.js';
 
 const UPGRADES = [
-  { id: 'rapidFire', label: 'RAPID FIRE', desc: 'Faster shooting' },
-  { id: 'shield', label: 'SHIELD', desc: 'Block one hit' },
-  { id: 'speedBoost', label: 'SPEED BOOST', desc: 'Move faster' },
-  { id: 'plusHeart', label: '+1 HEART', desc: 'Extra health' },
-  { id: 'doubleScore', label: '2x SCORE', desc: 'Double points' }
+  { id: 'rapidFire', label: 'SNELVUUR', desc: 'Sneller schieten' },
+  { id: 'shield', label: 'SCHILD', desc: 'Blokkeert één treffer' },
+  { id: 'speedBoost', label: 'SNELHEIDSBOOST', desc: 'Sneller bewegen' },
+  { id: 'plusHeart', label: '+1 HART', desc: 'Extra leven' },
+  { id: 'doubleScore', label: '2x SCORE', desc: 'Dubbele punten' }
 ];
 
 export class Game {
@@ -1464,22 +1464,22 @@ export class Game {
     this.audio.playCorrect();
     if (reward === 'plusHeart') {
       this.player.health = Math.min(this.player.maxHealth, this.player.health + 1);
-      this.upgradeText = '+1 HEART';
+      this.upgradeText = '+1 HART';
     } else if (reward === 'doubleScore') {
       this.doubleScore = true;
       this.doubleScoreTimer = 15;
       this.upgradeText = '2x SCORE (15s)';
     } else if (reward === 'plusTime') {
       this.timer = Math.min(this.timerMax, this.timer + 4);
-      this.upgradeText = '+4 SECONDS';
+      this.upgradeText = '+4 SECONDEN';
     } else if (reward === 'rapidFire') {
       this.player.rapidFire = true;
       setTimeout(() => { this.player.rapidFire = false; }, 12000);
-      this.upgradeText = 'RAPID FIRE';
+      this.upgradeText = 'SNELVUUR';
     } else if (reward === 'shield') {
       this.player.shield = true;
       this.player.shieldTimer = 10;
-      this.upgradeText = 'SHIELD ACTIVE';
+      this.upgradeText = 'SCHILD ACTIEF';
     }
     this.upgradeTimer = 2.5;
   }
@@ -1502,12 +1502,12 @@ export class Game {
   _applyPowerPickup(type) {
     if (type === 'diamond') {
       this.player.piercingShotTimer = 8;
-      this.powerupText = '◆ PIERCING SHOT';
+      this.powerupText = '◆ DOORBOORSCHOT';
     } else {
       this.player.powerInvincibleTimer = 6;
       const hasFloat = this.modifier !== 'lowGravity';
       if (hasFloat) this.player.floatTimer = 6;
-      this.powerupText = hasFloat ? '⚗ INVINCIBILITY + FLOAT' : '⚗ INVINCIBILITY';
+      this.powerupText = hasFloat ? '⚗ ONKWETSBAARHEID + ZWEVEN' : '⚗ ONKWETSBAARHEID';
     }
     this.powerupTimer = 3;
     this.audio.playCorrect();
@@ -1630,7 +1630,7 @@ export class Game {
       ctx.shadowBlur = 12;
       ctx.fillText(count, cw / 2, ch / 2 - 20);
       ctx.font = 'bold 20px monospace';
-      ctx.fillText('GET READY', cw / 2, ch / 2 + 50);
+      ctx.fillText('KLAAR VOOR DE START', cw / 2, ch / 2 + 50);
       ctx.restore();
     }
 
@@ -1644,7 +1644,7 @@ export class Game {
       ctx.textBaseline = 'middle';
       ctx.shadowColor = '#000';
       ctx.shadowBlur = 6;
-      ctx.fillText('▶ SCROLL PAUSED — REGROUP', cw / 2, ch / 2 + 40);
+      ctx.fillText('▶ SCROLLEN GEPAUZEERD — HERGROEPEREN', cw / 2, ch / 2 + 40);
       ctx.restore();
     }
 
@@ -1720,13 +1720,13 @@ export class Game {
       ctx.shadowBlur = 40;
       ctx.fillStyle = '#ccaa44';
       ctx.font = 'bold 108px monospace';
-      ctx.fillText('VICTORY!', 0, -28);
+      ctx.fillText('OVERWINNING!', 0, -28);
       // Sub-line
       ctx.shadowColor = '#00ff44';
       ctx.shadowBlur = 20;
       ctx.fillStyle = '#aaffcc';
       ctx.font = 'bold 22px monospace';
-      ctx.fillText('The Spelling Overlord has been defeated!', 0, 52);
+      ctx.fillText('De Spellingsheerser is verslagen!', 0, 52);
       ctx.restore();
     }
 
@@ -1782,15 +1782,15 @@ export class Game {
       ctx.font = 'bold 48px monospace';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText('PAUSED', cw / 2, ch / 2 - 30);
+      ctx.fillText('GEPAUZEERD', cw / 2, ch / 2 - 30);
 
       // Controls reminder
       const controls = [
-        ['← → / A D', 'Move'],
-        ['↑ / W / Space', 'Jump  (double jump in air)'],
-        ['Z / Ctrl / Click', 'Shoot'],
-        ['Shift', 'Knife (melee)'],
-        ['P / ESC', 'Pause / Resume'],
+        ['← → / A D', 'Bewegen'],
+        ['↑ / W / Spatie', 'Springen  (dubbel sprong in lucht)'],
+        ['Z / Ctrl / Klik', 'Schieten'],
+        ['Shift', 'Mes (hand-tot-hand)'],
+        ['P / ESC', 'Pauzeren / Hervatten'],
       ];
       ctx.font = '14px monospace';
       const colX = cw / 2 - 160;
@@ -1836,7 +1836,7 @@ export class Game {
       ctx.textBaseline = 'middle';
       ctx.shadowColor = '#00aa00';
       ctx.shadowBlur = 20;
-      ctx.fillText('MISSION COMPLETE!', cw / 2, ch / 2 - 40);
+      ctx.fillText('MISSIE VOLTOOID!', cw / 2, ch / 2 - 40);
     } else {
       ctx.fillStyle = '#ff4444';
       ctx.font = 'bold 60px monospace';
@@ -1844,17 +1844,17 @@ export class Game {
       ctx.textBaseline = 'middle';
       ctx.shadowColor = '#aa0000';
       ctx.shadowBlur = 20;
-      ctx.fillText('GAME OVER', cw / 2, ch / 2 - 40);
+      ctx.fillText('SPEL VOORBIJ', cw / 2, ch / 2 - 40);
     }
 
     ctx.shadowBlur = 0;
     ctx.fillStyle = '#a0e080';
     ctx.font = 'bold 28px monospace';
-    ctx.fillText(`Score: ${this.score}`, cw / 2, ch / 2 + 30);
+    ctx.fillText(`Score: ${this.score}`, cw / 2, ch / 2 + 30);  // 'Score' is international
 
     ctx.fillStyle = '#6a8a6a';
     ctx.font = '18px monospace';
-    ctx.fillText(`Words correct: ${this.correctCount}/${this.totalWords}`, cw / 2, ch / 2 + 70);
+    ctx.fillText(`Woorden goed: ${this.correctCount}/${this.totalWords}`, cw / 2, ch / 2 + 70);
 
     ctx.restore();
   }

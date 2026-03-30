@@ -1760,7 +1760,7 @@ export class BossKey {
       ctx.textBaseline = 'bottom';
       ctx.shadowColor = '#000';
       ctx.shadowBlur = 4;
-      ctx.fillText('PICK UP', cx, sy - 6);
+      ctx.fillText('OPPAKKEN', cx, sy - 6);
       ctx.shadowBlur = 0;
     }
   }

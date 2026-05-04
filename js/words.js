@@ -249,17 +249,21 @@ export function flattenManifest(manifest) {
   return entries;
 }
 
+export class WordListNotFoundError extends Error {
+  constructor(file) {
+    super(`Word list not found: ${file}`);
+    this.name = 'WordListNotFoundError';
+    this.file = file;
+  }
+}
+
 // Fetch and parse a single word list on demand (lazy loading).
 export async function fetchWordList(entry) {
   const file = entry.file || `data/${entry.id}.csv`;
-  try {
-    const res = await fetch(file);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return parseCSV(await res.text());
-  } catch (e) {
-    console.warn(`Failed to load word list "${entry.id}":`, e);
-    return FALLBACK[entry.id] || [];
-  }
+  const res = await fetch(file);
+  if (res.status === 404) throw new WordListNotFoundError(file);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return parseCSV(await res.text());
 }
 
 // Boot-time load: fetch manifest only — individual CSVs are loaded lazily.

@@ -1,4 +1,4 @@
-import { loadWordLists, fetchWordList, parseCSV } from './words.js';
+import { loadWordLists, fetchWordList, parseCSV, WordListNotFoundError } from './words.js';
 import { AudioManager } from './audio.js';
 import { Game } from './game.js';
 import * as LB from './leaderboard.js';
@@ -856,7 +856,18 @@ async function startGame() {
       ctx.textBaseline = 'middle';
       ctx.fillText('LOADING MISSION...', canvas.width / 2, canvas.height / 2);
       const entry = getManifest().find(e => e.id === selectedList) || { id: selectedList };
-      wordLists[selectedList] = await fetchWordList(entry);
+      try {
+        wordLists[selectedList] = await fetchWordList(entry);
+      } catch (e) {
+        if (e instanceof WordListNotFoundError) {
+          if (currentGame) { currentGame.destroy(); currentGame = null; }
+          alert('Het spijt ons verschrikkelijk, maar deze woordenlijst lijkt niet aanwezig op de server.');
+          currentScreen = 'LIST_SELECT';
+          renderCurrentScreen();
+          return;
+        }
+        throw e;
+      }
     }
   }
 

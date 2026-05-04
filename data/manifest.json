@@ -128,6 +128,9 @@
         ],
         "Méthode 131G": [
           { "id": "NLFR_131G", "label": "📝 G131 — Week 1", "subtitle": "G 131", "file": "data/NLFR/homework/NLFR_131G.csv" }
+        ],
+        "Chapitre": [
+          { "id": "NLFR_Chap5_A", "label": "📝 Chap. 5 — A", "subtitle": "Chap. 5", "file": "data/NLFR/homework/NLFR_Chap5_A.csv" }
         ]
       }
     }

@@ -45,6 +45,9 @@
         ],
         "Method 30M": [
           { "id": "NLEN_30M_1", "label": "📝 30M — Week 1", "subtitle": "30M", "file": "data/NLEN/homework/NLEN_30M_1.csv" }
+        ],
+        "Method 166": [
+          { "id": "NLEN_166_1", "label": "📝 166 — Week 1", "subtitle": "166", "file": "data/NLEN/homework/NLEN_166_1.csv" }
         ]
       }
     }

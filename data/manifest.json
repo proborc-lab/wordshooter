@@ -48,6 +48,10 @@
         ],
         "Method 166": [
           { "id": "NLEN_166_1", "label": "📝 166 — Week 1", "subtitle": "166", "file": "data/NLEN/homework/NLEN_166_1.csv" }
+        ],
+        "Week 27": [
+          { "id": "NLEN_WEEK27_1", "label": "📝 Week 27 — Part 1", "subtitle": "Week 27", "file": "data/NLEN/homework/NLEN_WEEK27_1.csv" },
+          { "id": "NLEN_WEEK27_2", "label": "📝 Week 27 — Part 2", "subtitle": "Week 27", "file": "data/NLEN/homework/NLEN_WEEK27_2.csv" }
         ]
       }
     }
@@ -134,7 +138,8 @@
         ],
         "Chapitre": [
           { "id": "NLFR_Chap5_A", "label": "📝 Chap. 5 — A", "subtitle": "Chap. 5", "file": "data/NLFR/homework/NLFR_Chap5_A.csv" },
-          { "id": "NLFR_Chap5_C", "label": "📝 Chap. 5 — C", "subtitle": "Chap. 5", "file": "data/NLFR/homework/NLFR_Chap5_C.csv" }
+          { "id": "NLFR_Chap5_C", "label": "📝 Chap. 5 — C", "subtitle": "Chap. 5", "file": "data/NLFR/homework/NLFR_Chap5_C.csv" },
+          { "id": "NLFR_Chap5_G", "label": "📝 Chap. 5 — G", "subtitle": "Chap. 5", "file": "data/NLFR/homework/NLFR_Chap5_G.csv" }
         ]
       }
     }

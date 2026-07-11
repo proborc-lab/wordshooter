@@ -8,13 +8,13 @@
  * Platform tile : 40×16 px, tiled
  */
 
-function mkCanvas(w, h) {
+export function mkCanvas(w, h) {
   const c = document.createElement('canvas');
   c.width = w; c.height = h;
   return c;
 }
 
-function flipH(src) {
+export function flipH(src) {
   const c = mkCanvas(src.width, src.height);
   const ctx = c.getContext('2d');
   ctx.translate(src.width, 0);
@@ -23,105 +23,7 @@ function flipH(src) {
   return c;
 }
 
-// ── PLAYER (16 × 24) ─────────────────────────────────────────────────────────
-// 4 frames: 0=idle, 1=walk-a, 2=walk-b, 3=jump/airborne
-function makePlayer() {
-  const W = 16, H = 24;
-
-  // Each frame: [leftLegX, leftLegY, leftLegH, rightLegX, rightLegY, rightLegH, bootY]
-  const legData = [
-    [3, 14, 5, 9, 14, 5, 19],   // idle
-    [2, 13, 6, 10, 15, 4, 19],  // walk-a: left forward, right back
-    [4, 15, 4,  8, 13, 6, 19],  // walk-b: right forward, left back
-    [2, 15, 4, 10, 15, 4, 19],  // jump: legs tucked
-  ];
-
-  return legData.map(([lx, ly, lh, rx, ry, rh, by]) => {
-    const c = mkCanvas(W, H);
-    const ctx = c.getContext('2d');
-    ctx.imageSmoothingEnabled = false;
-
-    // ── Helmet ──
-    ctx.fillStyle = '#1a2e1a';
-    ctx.fillRect(4,  0, 8, 1);   // tip (narrow)
-    ctx.fillRect(2,  1, 12, 1);  // row 1
-    ctx.fillRect(2,  2, 12, 3);  // brim rows 2-4
-    // Highlight on brim
-    ctx.fillStyle = '#2d4a2d';
-    ctx.fillRect(3,  2, 10, 1);
-    ctx.fillRect(3,  3, 10, 1);
-    // Bottom rim shadow
-    ctx.fillStyle = '#0f1a0f';
-    ctx.fillRect(2,  4, 12, 1);
-
-    // ── Face ──
-    ctx.fillStyle = '#c8a878';
-    ctx.fillRect(2, 5, 12, 4);
-    // Visor band (top of face)
-    ctx.fillStyle = '#22221a';
-    ctx.fillRect(2, 5, 12, 1);
-    // Eye (right side, so it faces right when looking right)
-    ctx.fillStyle = '#cc2222';
-    ctx.fillRect(9, 6, 2, 2);
-    ctx.fillStyle = '#ff4444';
-    ctx.fillRect(9, 6, 1, 1);   // glint
-    // Nose
-    ctx.fillStyle = '#8b6b4a';
-    ctx.fillRect(6, 7, 1, 1);
-    // Chin shadow
-    ctx.fillStyle = '#8b6b4a';
-    ctx.fillRect(2, 8, 12, 1);
-
-    // ── Neck ──
-    ctx.fillStyle = '#1a2e1a';
-    ctx.fillRect(5, 9, 6, 1);
-
-    // ── Jacket body ──
-    ctx.fillStyle = '#2d4a2d';
-    ctx.fillRect(2, 10, 12, 4);
-    // Jacket highlight
-    ctx.fillStyle = '#3a5a3a';
-    ctx.fillRect(4, 10, 5, 3);
-    // Chest pockets
-    ctx.fillStyle = '#1a2e1a';
-    ctx.fillRect(3, 11, 2, 2);
-    ctx.fillRect(11, 11, 2, 2);
-
-    // ── Gun (extends right on rows 11-12) ──
-    ctx.fillStyle = '#888888';
-    ctx.fillRect(13, 11, 3, 2);
-    ctx.fillStyle = '#555555';
-    ctx.fillRect(14, 12, 2, 1);
-    ctx.fillStyle = '#cccccc';
-    ctx.fillRect(15, 11, 1, 1);  // barrel tip glint
-
-    // ── Belt ──
-    ctx.fillStyle = '#1a1a0a';
-    ctx.fillRect(2, 13, 12, 1);
-    ctx.fillStyle = '#555533';
-    ctx.fillRect(6, 13, 4, 1);   // buckle
-
-    // ── Legs ──
-    ctx.fillStyle = '#2d4a2d';
-    ctx.fillRect(lx, ly, 4, lh);
-    ctx.fillRect(rx, ry, 4, rh);
-    // Leg highlight strip
-    ctx.fillStyle = '#3a5a3a';
-    ctx.fillRect(lx + 1, ly,     2, Math.max(lh - 1, 1));
-    ctx.fillRect(rx + 1, ry,     2, Math.max(rh - 1, 1));
-
-    // ── Boots ──
-    ctx.fillStyle = '#0a0a0a';
-    ctx.fillRect(lx - 1, by, 6, 2);
-    ctx.fillRect(rx - 1, by, 6, 2);
-    // Boot toe cap
-    ctx.fillStyle = '#1e1e1e';
-    ctx.fillRect(lx + 3, by, 2, 2);
-    ctx.fillRect(rx + 3, by, 2, 2);
-
-    return c;
-  });
-}
+// Player sprites (16×24) are built from palettes in cosmetics/skins.js.
 
 // ── MONSTER (20 × 25) ────────────────────────────────────────────────────────
 // 2 frames: 0=normal glow, 1=bright glow (eye pulse)
@@ -238,7 +140,7 @@ function makeMonster() {
 }
 
 // ── TINT HELPER ───────────────────────────────────────────────────────────────
-function tintSprite(src, color) {
+export function tintSprite(src, color) {
   const c = mkCanvas(src.width, src.height);
   const ctx = c.getContext('2d');
   ctx.drawImage(src, 0, 0);
@@ -364,14 +266,7 @@ export const Sprites = {
   cache: {},
 
   init() {
-    const playerFrames = makePlayer();
-    this.cache.playerRight = playerFrames;
-    this.cache.playerLeft  = playerFrames.map(f => flipH(f));
-
-    // Industrial (copper-tinted) player variants for rounds 3 & 4
-    this.cache.playerRightTinted = playerFrames.map(f => tintSprite(f, '#cc7733'));
-    this.cache.playerLeftTinted  = playerFrames.map(f => tintSprite(flipH(f), '#cc7733'));
-
+    // Player sprites are registered by cosmetics/skins.js (palette-based skins).
     this.cache.monster = makeMonster();
 
     this.cache.platformTile = makePlatformTile();

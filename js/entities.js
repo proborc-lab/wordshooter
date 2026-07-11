@@ -1,4 +1,6 @@
 import { Sprites } from './sprites.js';
+import { Effects } from './effects.js';
+import { BoxFx } from './boxfx.js';
 
 export class Projectile {
   constructor(x, y, vx, vy, fromPlayer, piercing = false) {
@@ -74,17 +76,34 @@ export class WordBox {
     this.height = 64;
     this.word = word;
     this.isCorrect = isCorrect;
-    this.state = 'normal'; // 'normal' | 'hit-correct' | 'hit-wrong' | 'destroyed'
+    // 'dissolving' = a boxAnim hit-effect is playing (see boxfx.js); it replaces
+    // the green flash, and the box is already out of play (state !== 'normal').
+    this.state = 'normal'; // 'normal' | 'hit-correct' | 'hit-wrong' | 'dissolving' | 'destroyed'
     this.hitTimer = 0;
     this.hitDuration = 0.4;
     this.shakeX = 0;
     this.shakeY = 0;
     this.alive = true;
     this.particles = [];
+    this.anim = null;      // the boxAnim params, while dissolving
+    this.animT = 0;        // 0 → 1 across anim.duration
+    this.burstDone = false;
   }
 
   update(dt) {
-    if (this.state === 'hit-correct' || this.state === 'hit-wrong') {
+    if (this.state === 'dissolving') {
+      this.animT += dt / (this.anim.duration || 0.7);
+      const burst = this.anim.burst;
+      if (burst && !this.burstDone && this.animT >= (burst.at != null ? burst.at : 0.7)) {
+        this.burstDone = true;
+        // From where the box IS by now, not where it started — a balloon that has
+        // drifted 100px up must burst up there, not back down on the ground.
+        const r = { x: this.x, y: this.y, w: this.width, h: this.height };
+        const c = BoxFx.animCenter(this.anim, r, this.animT);
+        for (const p of Effects.buildFrom(burst, c.x, c.y)) this.particles.push(p);
+      }
+      if (this.animT >= 1) this.state = 'destroyed';
+    } else if (this.state === 'hit-correct' || this.state === 'hit-wrong') {
       this.hitTimer -= dt;
       if (this.state === 'hit-wrong') {
         this.shakeX = (Math.random() - 0.5) * 8;
@@ -102,31 +121,22 @@ export class WordBox {
       }
     }
 
-    // Update particles
-    this.particles = this.particles.filter(p => {
-      p.x += p.vx * dt;
-      p.y += p.vy * dt;
-      p.vy += 400 * dt;
-      p.life -= dt;
-      return p.life > 0;
-    });
+    // Update particles (config-driven physics; see effects.js)
+    this.particles = Effects.step(this.particles, dt);
   }
 
   spawnParticles(correct) {
-    const color = correct ? '#44ff44' : '#ff4444';
-    for (let i = 0; i < 12; i++) {
-      this.particles.push({
-        x: this.x + this.width / 2,
-        y: this.y + this.height / 2,
-        vx: (Math.random() - 0.5) * 300,
-        vy: (Math.random() - 0.5) * 200 - 100,
-        color,
-        size: Math.random() * 5 + 2,
-        life: Math.random() * 0.4 + 0.2
-      });
-    }
+    const cx = this.x + this.width / 2;
+    const cy = this.y + this.height / 2;
+    const parts = correct ? Effects.buildHit(cx, cy) : Effects.buildMiss(cx, cy);
+    for (const p of parts) this.particles.push(p);
   }
 
+  /**
+   * Shared shell for every box type: particles, then the body — routed through
+   * the box-anim while dissolving. Subclasses override paintBody, not draw, so
+   * they all get the dissolve animations for free.
+   */
   draw(ctx, cameraX) {
     if (this.state === 'destroyed' && this.particles.length === 0) return;
 
@@ -135,17 +145,19 @@ export class WordBox {
     const w = this.width;
     const h = this.height;
 
-    // Draw particles
-    for (const p of this.particles) {
-      ctx.save();
-      ctx.globalAlpha = p.life * 2.5;
-      ctx.fillStyle = p.color;
-      ctx.fillRect(p.x - cameraX - p.size / 2, p.y - p.size / 2, p.size, p.size);
-      ctx.restore();
-    }
+    for (const p of this.particles) Effects.drawParticle(ctx, p, cameraX);
 
     if (this.state === 'destroyed') return;
 
+    const body = (c) => this.paintBody(c, sx, sy, w, h);
+    if (this.state === 'dissolving') {
+      BoxFx.drawDissolve(ctx, this.anim, { x: sx, y: sy, w, h }, Math.min(1, this.animT), body);
+    } else {
+      body(ctx);
+    }
+  }
+
+  paintBody(ctx, sx, sy, w, h) {
     // Box background
     let bgColor = '#2d3a1a';
     let borderColor = '#5a7a3a';
@@ -248,6 +260,18 @@ export class WordBox {
   }
 
   hit(correct) {
+    // A box-anim effect REPLACES the green flash: the animation is the
+    // confirmation. The box leaves play right here either way — what gates
+    // shooting is `state !== 'normal'`, not `alive` (see game.js).
+    const anim = correct ? BoxFx.animFor(Effects.getActiveHit()) : null;
+    if (anim) {
+      this.state = 'dissolving';
+      this.anim = anim;
+      this.animT = 0;
+      this.burstDone = false;
+      this.alive = false;
+      return;
+    }
     this.state = correct ? 'hit-correct' : 'hit-wrong';
     this.hitTimer = this.hitDuration;
     this.spawnParticles(correct);
@@ -276,25 +300,7 @@ export class BonusBox extends WordBox {
     this.pulseTimer += dt;
   }
 
-  draw(ctx, cameraX) {
-    if (this.state === 'destroyed' && this.particles.length === 0) return;
-
-    const sx = Math.round(this.x - cameraX);
-    const sy = Math.round(this.y);
-    const w = this.width;
-    const h = this.height;
-
-    // Draw particles
-    for (const p of this.particles) {
-      ctx.save();
-      ctx.globalAlpha = p.life * 2.5;
-      ctx.fillStyle = p.color;
-      ctx.fillRect(p.x - cameraX - p.size / 2, p.y - p.size / 2, p.size, p.size);
-      ctx.restore();
-    }
-
-    if (this.state === 'destroyed') return;
-
+  paintBody(ctx, sx, sy, w, h) {
     // Golden pulsing box
     const pulse = 0.7 + Math.sin(this.pulseTimer * 4) * 0.3;
     ctx.save();
@@ -953,24 +959,7 @@ export class SpellingBox extends WordBox {
     this.isSpelling = true;
   }
 
-  draw(ctx, cameraX) {
-    if (this.state === 'destroyed' && this.particles.length === 0) return;
-
-    const sx = Math.round(this.x - cameraX + this.shakeX);
-    const sy = Math.round(this.y + this.shakeY);
-    const w = this.width;
-    const h = this.height;
-
-    for (const p of this.particles) {
-      ctx.save();
-      ctx.globalAlpha = p.life * 2.5;
-      ctx.fillStyle = p.color;
-      ctx.fillRect(p.x - cameraX - p.size / 2, p.y - p.size / 2, p.size, p.size);
-      ctx.restore();
-    }
-
-    if (this.state === 'destroyed') return;
-
+  paintBody(ctx, sx, sy, w, h) {
     let bgColor = '#1a1a3a';
     let borderColor = '#4466cc';
     let glowColor = '#2244ff';

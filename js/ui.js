@@ -137,6 +137,15 @@ export function drawHUD(ctx, gameState) {
     ctx.fillText('DOORBOOR', heartsX + offX, heartsY + heartSize + 10);
   }
 
+  // === Coins (top-left, below the power-up indicators) ===
+  // Bumps briefly as flying coins land on the counter.
+  const coinBump = gameState.coinBump || 0;
+  ctx.fillStyle = coinBump > 0.1 ? '#fff2a8' : '#ffd23f';
+  ctx.font = `bold ${14 + coinBump * 5}px monospace`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`🪙 ${gameState.coins || 0}`, heartsX, heartsY + heartSize + 30);
+
   // === Score (top-right) ===
   ctx.fillStyle = '#a0e080';
   ctx.font = 'bold 20px monospace';

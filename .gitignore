@@ -1,2 +1,5 @@
 # LibreOffice lock files
 .~lock.*#
+
+# Build-uitvoer van deploy.sh
+dist/

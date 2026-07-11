@@ -2,6 +2,12 @@ import { loadWordLists, fetchWordList, parseCSV, WordListNotFoundError } from '.
 import { AudioManager } from './audio.js';
 import { Game } from './game.js';
 import * as LB from './leaderboard.js';
+import * as Store from './cosmetics/store.js';
+import * as Quest from './quest.js';
+import { openLocker } from './screens/locker.js';
+import { openMixer } from './screens/mixer.js';
+import { rebuildCustom } from './cosmetics/skins.js';
+import { questStrip, questResult, questBoard } from './screens/quest-ui.js';
 
 // ---- Canvas setup ----
 const canvas = document.getElementById('gameCanvas');
@@ -37,7 +43,10 @@ const SCREENS = {
   DIRECTION_SELECT: 'DIRECTION_SELECT',
   PLAYING: 'PLAYING',
   GAME_OVER: 'GAME_OVER',
-  LEADERBOARD: 'LEADERBOARD'
+  LEADERBOARD: 'LEADERBOARD',
+  LOCKER: 'LOCKER',
+  QUEST_BOARD: 'QUEST_BOARD',
+  MIXER: 'MIXER'
 };
 
 let currentScreen = SCREENS.TITLE;
@@ -55,6 +64,8 @@ let _lsEditingList = null;   // 'new' = creating, 'custom_...' = editing existin
 let currentGame = null;
 let lastScore = 0;
 let lastVictory = false;
+let lastQuest = null;          // what the weekly quest did on the last game-over
+let lastGainedEffect = null;   // catalog item granted by the last Onbetwistbare Overwinning
 let currentRound = 1;
 let activeModifier = null;
 let _round2Modifier = null; // remember round-2 modifier to exclude it from round 4
@@ -118,6 +129,9 @@ function renderCurrentScreen() {
     case SCREENS.DIRECTION_SELECT: renderDirectionSelect(); break;
     case SCREENS.GAME_OVER:      renderGameOver(); break;
     case SCREENS.LEADERBOARD:    renderLeaderboard(); break;
+    case SCREENS.LOCKER:         renderLocker(); break;
+    case SCREENS.QUEST_BOARD:    renderQuestBoard(); break;
+    case SCREENS.MIXER:          renderMixer(); break;
     default:                     break;
   }
 }
@@ -304,6 +318,9 @@ function renderPlayerSelect() {
 function selectPlayer(name) {
   selectedPlayer = name;
   LB.addPlayer(name);
+  // 'Mijn Ontwerp' is the one skin whose colors live in the player's store, so
+  // its sprite has to be built now that we know who's playing.
+  rebuildCustom(name);
   goToScreen(SCREENS.LIST_SELECT);
 }
 
@@ -550,11 +567,18 @@ function renderListSelect() {
       <div class="menu-panel">
         <div class="menu-section-title">Soldaat: ${selectedPlayer}</div>
         <div class="menu-title" style="font-size:32px;margin-bottom:6px">KIES MISSIE</div>
+        <div class="menu-section-title">Deze week</div>
+        ${questStrip(selectedPlayer)}
         <input class="menu-input" id="listSearch" type="search" placeholder="Doorzoek alle lijsten…" autocomplete="off" />
         <button class="menu-btn" id="myListsBtn" style="border-color:#88aaff;color:#88aaff;margin-bottom:4px">
           📝 MIJN LIJSTEN
           <span style="font-size:11px;opacity:0.7;margin-left:8px">${myListsCount} lijst${myListsCount !== 1 ? 'en' : ''}</span>
         </button>
+        <button class="menu-btn" id="lockerBtn" style="border-color:#a0e080;color:#a0e080;margin-bottom:4px">
+          🎽 KLEDINGKAST
+          <span style="font-size:11px;opacity:0.8;margin-left:8px;color:#ffd23f">🪙 ${Store.getCoins(selectedPlayer)}</span>
+        </button>
+        ${_mixerButtonHTML()}
         <div class="menu-section-title">Taalcombinatie</div>
         ${pairBtns}
         <button class="menu-btn back-btn" id="backBtn" style="font-size:13px">← TERUG</button>
@@ -565,6 +589,11 @@ function renderListSelect() {
       _lsMyLists = true;
       renderListSelect();
     });
+    document.getElementById('lockerBtn').addEventListener('click', () => goToScreen(SCREENS.LOCKER));
+    document.getElementById('questBtn').addEventListener('click', () => goToScreen(SCREENS.QUEST_BOARD));
+    if (Store.mixerStatus(selectedPlayer).unlocked) {
+      document.getElementById('mixerBtn').addEventListener('click', () => goToScreen(SCREENS.MIXER));
+    }
     overlay.querySelector('.menu-panel').addEventListener('click', e => {
       const btn = e.target.closest('[data-langpair]');
       if (btn) { _lsLangPair = btn.dataset.langpair; renderListSelect(); }
@@ -891,6 +920,16 @@ async function startGame() {
     lastScore = score;
     lastVictory = won;
     currentGame = null;
+    // Onbetwistbare Overwinning (all 4 rounds beaten): grant the next effect.
+    // Done here so it fires exactly once per game-over, not on each re-render.
+    lastGainedEffect = (won && currentRound === 4)
+      ? Store.unlockNextEffect(selectedPlayer)
+      : null;
+    // Weekly quest: a won round fills today. A full run fills it too and pays a
+    // bonus. A loss records nothing — it must never feel like a penalty.
+    lastQuest = won
+      ? Quest.recordWin(selectedPlayer, { fullRun: currentRound === 4 })
+      : null;
     goToScreen(SCREENS.GAME_OVER);
   };
 
@@ -939,6 +978,9 @@ function renderGameOver() {
     <div style="color:#ffd700;font-size:38px;font-weight:bold;letter-spacing:3px;margin:8px 0;text-shadow:0 0 24px #ffaa00">ONBETWISTBARE OVERWINNING!</div>
     <div style="color:#aaffcc;font-size:14px;margin-bottom:16px">De Spellingsheerser is in alle vier de ronden verslagen!</div>
     <div style="color:#88ccff;font-size:13px;margin-bottom:20px;font-style:italic">Ben je sterk genoeg om het opnieuw aan te gaan?</div>
+    ${lastGainedEffect
+      ? `<div style="color:#ff88ff;font-size:15px;margin-bottom:16px">🎇 Nieuw box-effect ontgrendeld: <b>${lastGainedEffect.name}</b>!</div>`
+      : ''}
     <button class="menu-btn" id="playAgainBtn" style="border-color:#ffd700;color:#ffd700">▶ OPNIEUW BEGINNEN (Ronde 1)</button>
   ` : `
     <button class="menu-btn" id="playAgainBtn">▶ OPNIEUW SPELEN</button>
@@ -950,10 +992,16 @@ function renderGameOver() {
         ${lastVictory ? '★ MISSIE VOLTOOID' : '✗ SPEL VOORBIJ'}
       </div>
       <div class="menu-subtitle">${listLabel} · ${dirLabel}</div>
-      <div style="color:#a0e080;font-size:28px;margin:16px 0;font-weight:bold">${lastScore} pts</div>
+      <div style="color:#a0e080;font-size:28px;margin:16px 0 6px;font-weight:bold">${lastScore} pts</div>
+      <div style="color:#ffd23f;font-size:14px;margin-bottom:12px">🪙 ${Store.getCoins(selectedPlayer)} munten · te besteden in de 🎽 Kledingkast</div>
+      ${questResult(lastQuest)}
       ${rankText ? `<div style="color:#ffdd00;font-size:14px;margin-bottom:12px">${rankText}</div>` : ''}
       ${countdownHtml}
       ${trueVictoryHtml}
+      <button class="menu-btn" id="gameoverLockerBtn" style="border-color:#a0e080;color:#a0e080">
+        🎽 KLEDINGKAST
+        <span style="font-size:11px;opacity:0.8;margin-left:8px;color:#ffd23f">🪙 ${Store.getCoins(selectedPlayer)}</span>
+      </button>
       <button class="menu-btn" id="changeListBtn">🔄 ANDERE MISSIE</button>
       <button class="menu-btn" id="lbBtn2">📊 RANGLIJST</button>
       <button class="menu-btn back-btn" id="titleBtn">⌂ HOOFDMENU</button>
@@ -992,6 +1040,10 @@ function renderGameOver() {
       _originalDirection = '';
     }
     startGame();
+  });
+
+  document.getElementById('gameoverLockerBtn').addEventListener('click', () => {
+    goToScreen(SCREENS.LOCKER);
   });
 
   document.getElementById('changeListBtn').addEventListener('click', () => {
@@ -1096,6 +1148,59 @@ function renderLeaderboard() {
     } else {
       goToScreen(SCREENS.PLAYER_SELECT);
     }
+  });
+}
+
+/**
+ * The mixer button. Locked until enough outfits are owned — and it SHOWS the
+ * progress, so the lock reads as a goal to save towards rather than a wall.
+ */
+function _mixerButtonHTML() {
+  const m = Store.mixerStatus(selectedPlayer);
+  if (m.unlocked) {
+    return `<button class="menu-btn" id="mixerBtn" style="border-color:#d8a0e0;color:#d8a0e0;margin-bottom:4px">
+      🎨 KLEURENMENGER
+      <span style="font-size:11px;opacity:0.7;margin-left:8px">ontwerp je eigen outfit</span>
+    </button>`;
+  }
+  return `<button class="menu-btn" id="mixerBtn" disabled
+    style="border-color:#3a4a3a;color:#5a7a5a;margin-bottom:4px;cursor:default">
+    🔒 KLEURENMENGER
+    <span style="font-size:11px;margin-left:8px">nog ${m.needed - m.owned} outfits · ${m.owned}/${m.needed}</span>
+  </button>`;
+}
+
+// ---- MIXER ----
+function renderMixer() {
+  // Guard the screen too, not just the button — stale state must not sneak in.
+  if (!Store.mixerStatus(selectedPlayer).unlocked) {
+    goToScreen(SCREENS.LIST_SELECT);
+    return;
+  }
+  hideOverlay();
+  openMixer({
+    canvas, ctx,
+    player: selectedPlayer,
+    isActive: () => currentScreen === SCREENS.MIXER,
+    onExit: () => goToScreen(SCREENS.LIST_SELECT),
+  });
+}
+
+// ---- QUEST BOARD ----
+function renderQuestBoard() {
+  showOverlay(questBoard(selectedPlayer));
+  document.getElementById('questBackBtn')
+    .addEventListener('click', () => goToScreen(SCREENS.LIST_SELECT));
+}
+
+// ---- LOCKER ----
+function renderLocker() {
+  hideOverlay();
+  openLocker({
+    canvas, ctx,
+    player: selectedPlayer,
+    isActive: () => currentScreen === SCREENS.LOCKER,
+    onExit: () => goToScreen(SCREENS.LIST_SELECT),
   });
 }
 

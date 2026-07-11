@@ -3,6 +3,11 @@ import { Player } from './player.js';
 import { WordBox, BonusBox, Monster, BatMonster, SnakeMonster, Janitor, Projectile, Turret, Medkit, Mine, Boss, SpellingBox, BossKey, PowerPickup } from './entities.js';
 import { shuffle, generateMisspellings } from './words.js';
 import { drawHUD, drawRedOverlay, drawBossHUD } from './ui.js';
+import { Effects } from './effects.js';
+import { CONFIG } from './config.js';
+import * as Store from './cosmetics/store.js';
+import { Follower } from './entities/follower.js';
+import * as CoinFX from './coinfx.js';
 
 const UPGRADES = [
   { id: 'rapidFire', label: 'SNELVUUR', desc: 'Sneller schieten' },
@@ -22,6 +27,9 @@ export class Game {
     this.playerName = playerName;
     this.audio = audio;
     this.leaderboard = leaderboard;
+
+    // Apply this player's equipped box hit-effect for the whole game.
+    Effects.setActiveHit(Store.getEquipped(playerName).hitEffect);
 
     // Speed setting — affects scroll rate and word timer
     const speedPresets = {
@@ -53,6 +61,11 @@ export class Game {
     this.level.scrollSpeed = sp.scroll;
     if (this.superEasy) this.level.initSuperEasyRail();
     this.player = new Player(150, canvas.height - 200);
+    this.player.skinId = Store.getEquipped(playerName).skin;
+    const _follId = Store.getEquipped(playerName).follower;
+    this.follower = _follId ? new Follower(_follId) : null;
+    this.coins = Store.getCoins(playerName);   // running total, shown in the HUD
+    CoinFX.clear();
     this.cameraX = 0;
     this.running = true;
     this.paused = false;
@@ -265,7 +278,7 @@ export class Game {
     this.boxes.push(bonus);
   }
 
-  onCorrectHit() {
+  onCorrectHit(box) {
     this.combo++;
     this.consecutiveWrong = 0;
     // RE-01: correct answer reduces red tint
@@ -285,6 +298,9 @@ export class Game {
 
     this.correctCount++;
     this.audio.playCorrect();
+    this.coins = Store.addCoins(this.playerName, CONFIG.coinsPerCorrect);
+    if (box) CoinFX.spawn(box.x + box.width / 2 - this.cameraX, box.y + box.height / 2);
+    if (this.follower) this.follower.emote('correct');
 
     // Point 11 + Point 3: correct pair flash + TTS
     const _cw = this.getCurrentWord();
@@ -366,6 +382,7 @@ export class Game {
     this.multiplier = 1;
     this.consecutiveWrong++;
     this.audio.playWrong();
+    if (this.follower) this.follower.emote('miss');
 
     // Point 1: reveal correct answer after wrong hit
     const _ww = this.getCurrentWord();
@@ -690,7 +707,7 @@ export class Game {
             box.hit(false);
           } else {
             box.hit(true);
-            this.onCorrectHit();
+            this.onCorrectHit(box);
           }
         } else {
           box.hit(false);
@@ -900,6 +917,8 @@ export class Game {
     } : this.keys;
     const wasOnGround = this.player.onGround;
     this.player.update(dt, visiblePlatforms, effectiveKeys);
+    if (this.follower) this.follower.update(dt, this.player);
+    CoinFX.update(dt, 22, 64);   // home toward the HUD coin counter (top-left)
 
     // Boost pad — launch player upward and enable pass-through for ~1.1 s
     if (!wasOnGround && this.player.onGround && this.player.boostTimer <= 0) {
@@ -1265,7 +1284,7 @@ export class Game {
               if (!proj.piercing) break; else continue;
             }
             box.hit(true);
-            this.onCorrectHit();
+            this.onCorrectHit(box);
           } else {
             box.hit(false);
             this.onWrongHit(box);
@@ -1562,6 +1581,7 @@ export class Game {
     if (this.bossKey)               this.bossKey.draw(ctx, this.cameraX);
 
     // Draw player
+    if (this.follower) this.follower.draw(ctx, this.cameraX);
     this.player.draw(ctx, this.cameraX);
 
     // Lightning warning platform flash (inside mirror transform)
@@ -1743,6 +1763,8 @@ export class Game {
       direction: this.direction,
       correctCount: this.correctCount,
       totalWords: this.totalWords,
+      coins: this.coins,
+      coinBump: CoinFX.counterBump(),
       upgradeText: this.upgradeText,
       upgradeTimer: this.upgradeTimer,
       streakNotify: this.streakNotify,
@@ -1767,6 +1789,7 @@ export class Game {
       wrongRevealTimer: this.wrongRevealTimer,
     };
     drawHUD(ctx, hudState);
+    CoinFX.draw(ctx);   // coins land on top of the HUD counter
     if (this.boss) {
       drawBossHUD(ctx, this.boss);
     }

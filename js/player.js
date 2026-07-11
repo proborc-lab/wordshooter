@@ -1,4 +1,4 @@
-import { Sprites } from './sprites.js';
+import { drawPlayer, skinKey } from './cosmetics/skins.js';   // also registers the player skins into Sprites.cache
 
 export class Player {
   constructor(x, y) {
@@ -31,6 +31,7 @@ export class Player {
     this.gravityMult = 1.0;  // modifier hook (e.g. lowGravity sets to 0.45)
     this.jumpMult = 1.0;     // modifier hook (e.g. lowGravity sets to 1.55)
     this.tinted = false;     // true in industrial rounds (3 & 4) — copper tint
+    this.skinId = null;      // equipped cosmetic skin; null → base 'Ranger'
     this.boostTimer = 0;     // > 0 → ignore platform collision (boss boost pad)
     this.powerInvincibleTimer = 0; // > 0 → immune to all damage (flask power-up)
     this.piercingShotTimer = 0;    // > 0 → bullets pass through everything (diamond power-up)
@@ -208,8 +209,10 @@ export class Player {
       return;
     }
 
-    const suffix = this.tinted ? 'Tinted' : '';
-    const spriteName = (this.facingRight ? 'playerRight' : 'playerLeft') + suffix;
+    // Resolve the equipped skin's sprite key, falling back to the base if a
+    // skin isn't registered (robust against a missing/typo'd skin id).
+    const skinBase = (right) => skinKey(this.skinId, right, this.tinted);
+    const spriteName = skinBase(this.facingRight);
     const frame = this.onGround ? this.walkFrame : 3;
 
     // Tumbling fall — spin with distress marker
@@ -217,9 +220,8 @@ export class Player {
       ctx.save();
       ctx.translate(x + w / 2, y + h / 2);
       ctx.rotate(this.tumbleAngle);
-      const tumblingName = (Math.floor(this.tumbleAngle / (Math.PI * 0.5)) % 2 === 0
-        ? 'playerRight' : 'playerLeft') + suffix;
-      Sprites.draw(ctx, tumblingName, -w / 2, -h / 2, { frame: 3, scale: 2 });
+      const tumblingName = skinBase(Math.floor(this.tumbleAngle / (Math.PI * 0.5)) % 2 === 0);
+      drawPlayer(ctx, tumblingName, -w / 2, -h / 2, { frame: 3, scale: 2 });
       ctx.rotate(-this.tumbleAngle); // keep text upright
       ctx.fillStyle = '#ff4444';
       ctx.font = 'bold 14px monospace';
@@ -238,10 +240,10 @@ export class Player {
       ctx.save();
       ctx.translate(x + w / 2, y + h / 2);
       ctx.rotate(this.flipAngle);
-      Sprites.draw(ctx, spriteName, -w / 2, -h / 2, { frame: 3, scale: 2 });
+      drawPlayer(ctx, spriteName, -w / 2, -h / 2, { frame: 3, scale: 2 });
       ctx.restore();
     } else {
-      Sprites.draw(ctx, spriteName, x, y, { frame, scale: 2 });
+      drawPlayer(ctx, spriteName, x, y, { frame, scale: 2 });
     }
 
     // Power invincibility aura — gold pulsing ring

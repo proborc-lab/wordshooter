@@ -250,34 +250,6 @@ export class Game {
 
     // No-Peek: reset visibility timer
     this.noPeekTimer = 2.5;
-    return;
-  }
-
-  /**
-   * Build the Nemesis: a stack of word boxes, one of which is the answer. The
-   * others are the words he ACTUALLY confuses it with (wordstats), padded from
-   * the list if he hasn't confused it with enough yet. Random words would let
-   * him eliminate his way to the answer — his own confusions won't.
-   */
-  _spawnNemesis(answer) {
-    const want = CONFIG.nemesis.segments;
-    const confusions = WordStats.confusionsFor(this.playerName, this._listName, answer);
-
-    const pool = [...confusions];
-    for (const w of shuffle(this.words)) {          // pad with list words if needed
-      const val = this.direction === 'a-to-b' ? w.b : w.a;
-      if (val !== answer && !pool.includes(val)) pool.push(val);
-      if (pool.length >= want - 1) break;
-    }
-
-    const items = shuffle([
-      { word: answer, isCorrect: true },
-      ...pool.slice(0, want - 1).map(word => ({ word, isCorrect: false })),
-    ]);
-
-    const x = this.cameraX + this.canvas.width * 0.62;
-    this.nemesis = new Nemesis(x, this.level.groundY, items);
-    this.noPeekTimer = 2.5;
 
     // Boxes Move: assign oscillating velocity to each word box
     if (this.modifier === 'boxesMove') {
@@ -317,6 +289,34 @@ export class Game {
     if (this.correctCount > 0 && this.correctCount % 7 === 0) {
       this._spawnBonusBox(placeFrom + this.canvas.width * 0.8);
     }
+  }
+
+
+  /**
+   * Build the Nemesis: a stack of word boxes, one of which is the answer. The
+   * others are the words he ACTUALLY confuses it with (wordstats), padded from
+   * the list if he hasn't confused it with enough yet. Random words would let
+   * him eliminate his way to the answer — his own confusions won't.
+   */
+  _spawnNemesis(answer) {
+    const want = CONFIG.nemesis.segments;
+    const confusions = WordStats.confusionsFor(this.playerName, this._listName, answer);
+
+    const pool = [...confusions];
+    for (const w of shuffle(this.words)) {          // pad with list words if needed
+      const val = this.direction === 'a-to-b' ? w.b : w.a;
+      if (val !== answer && !pool.includes(val)) pool.push(val);
+      if (pool.length >= want - 1) break;
+    }
+
+    const items = shuffle([
+      { word: answer, isCorrect: true },
+      ...pool.slice(0, want - 1).map(word => ({ word, isCorrect: false })),
+    ]);
+
+    const x = this.cameraX + this.canvas.width * 0.62;
+    this.nemesis = new Nemesis(x, this.level.groundY, items);
+    this.noPeekTimer = 2.5;
   }
 
   _spawnBonusBox(nearX) {

@@ -208,45 +208,77 @@ function makePlatformTileIndustrial() {
 
 // ── PLATFORM TILE (40 × 16) ──────────────────────────────────────────────────
 // Repeating brick tile — horizontally tileable
-function makePlatformTile() {
+// Lightness multipliers that reproduce the original green tile from its base
+// colour (#2d4a2d) — so any base colour now yields a matching brick tile.
+const TILE_SHADES = {
+  top1: 1.92, top2: 1.65, top3: 1.38,
+  mortar: 0.54, brick: 0.93, brickHi: 1.14, shadow: 0.61,
+};
+
+/** hex → HSL, scale the lightness, → hex. */
+function shade(hex, mul) {
+  const [r, g, b] = [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const max = Math.max(r, g, b), min = Math.min(r, g, b);
+  let l = (max + min) / 2;
+  const d = max - min;
+  let h = 0, s = 0;
+  if (d !== 0) {
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+    else if (max === g) h = ((b - r) / d + 2) / 6;
+    else h = ((r - g) / d + 4) / 6;
+  }
+  l = Math.min(1, Math.max(0, l * mul));
+  const f = n => {
+    const k = (n + h * 12) % 12;
+    const a = s * Math.min(l, 1 - l);
+    const v = l - a * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    return Math.round(v * 255).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
+/**
+ * The brick platform tile, in any colour.
+ *
+ * It used to hard-code seven greens, which meant every world got green
+ * platforms no matter what its palette said — a London of brick terraces with
+ * grass ledges. All seven shades now derive from one base colour.
+ */
+export function makePlatformTile(base = '#2d4a2d') {
   const W = 40, H = 16;
   const c = mkCanvas(W, H);
   const ctx = c.getContext('2d');
+  const S = k => shade(base, TILE_SHADES[k]);
 
-  // Base fill
-  ctx.fillStyle = '#2d4a2d';
+  ctx.fillStyle = base;
   ctx.fillRect(0, 0, W, H);
 
-  // Top highlight (grass/surface)
-  ctx.fillStyle = '#5a8a5a';
-  ctx.fillRect(0, 0, W, 1);
-  ctx.fillStyle = '#4a7a4a';
-  ctx.fillRect(0, 1, W, 1);
-  ctx.fillStyle = '#3a6a3a';
-  ctx.fillRect(0, 2, W, 1);
+  // Top surface highlight
+  ctx.fillStyle = S('top1'); ctx.fillRect(0, 0, W, 1);
+  ctx.fillStyle = S('top2'); ctx.fillRect(0, 1, W, 1);
+  ctx.fillStyle = S('top3'); ctx.fillRect(0, 2, W, 1);
 
-  // Brick mortar lines (horizontal)
-  ctx.fillStyle = '#1a3010';
-  ctx.fillRect(0, 7, W, 1);   // between row 1 and row 2
+  // Horizontal mortar line
+  ctx.fillStyle = S('mortar');
+  ctx.fillRect(0, 7, W, 1);
 
-  // Brick body colour (lighter than base)
-  ctx.fillStyle = '#354a25';
-  // Row 1 bricks (full offset)
+  // Bricks — row 1 full offset, row 2 half offset
+  ctx.fillStyle = S('brick');
   ctx.fillRect(1, 3, 18, 4);
   ctx.fillRect(21, 3, 18, 4);
-  // Row 2 bricks (half offset)
   ctx.fillRect(1, 8, 8, 5);
   ctx.fillRect(11, 8, 18, 5);
   ctx.fillRect(31, 8, 8, 5);
 
-  // Brick vertical joints
-  ctx.fillStyle = '#1a3010';
-  ctx.fillRect(20, 3, 1, 4);   // row-1 joint
-  ctx.fillRect(10, 8, 1, 5);   // row-2 joints
+  // Vertical joints
+  ctx.fillStyle = S('mortar');
+  ctx.fillRect(20, 3, 1, 4);
+  ctx.fillRect(10, 8, 1, 5);
   ctx.fillRect(30, 8, 1, 5);
 
-  // Brick highlight (top edge of each brick)
-  ctx.fillStyle = '#3d5a2d';
+  // Top edge of each brick
+  ctx.fillStyle = S('brickHi');
   ctx.fillRect(1, 3, 18, 1);
   ctx.fillRect(21, 3, 18, 1);
   ctx.fillRect(1, 8, 8, 1);
@@ -254,7 +286,7 @@ function makePlatformTile() {
   ctx.fillRect(31, 8, 8, 1);
 
   // Bottom shadow
-  ctx.fillStyle = '#1a2e1a';
+  ctx.fillStyle = S('shadow');
   ctx.fillRect(0, H - 2, W, 2);
 
   return c;

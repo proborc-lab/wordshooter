@@ -1,4 +1,5 @@
 import { Sprites } from './sprites.js';
+import { themeDef } from './themes/index.js';
 
 export class Level {
   constructor(canvas) {
@@ -18,72 +19,43 @@ export class Level {
       canvas.height - 470,  // tier 4 — high
     ];
     this.superEasyRail = null;
-    this.bgStars = this._generateBgElements();
-    this.bgIndustrial = this._generateBgElementsIndustrial();
-    this.theme = 'forest'; // 'forest' | 'industrial'
     this.difficulty = 0; // set externally by Game when correctCount milestones hit
+    this.setTheme('bos');
     this.generate();
   }
 
-  _generateBgElementsIndustrial() {
-    const elements = [];
-    // Factories, silos, and smokestacks pre-generated for industrial theme
-    for (let i = 0; i < 28; i++) {
-      const type = Math.random() < 0.35 ? 'smokestack' : 'factory';
-      const w = type === 'smokestack' ? 18 + Math.random() * 14 : 55 + Math.random() * 90;
-      const h = type === 'smokestack' ? 120 + Math.random() * 140 : 55 + Math.random() * 130;
-      const windows = [];
-      if (type === 'factory') {
-        for (let dy = 12; dy < h - 12; dy += 20) {
-          for (let dx = 6; dx < w - 8; dx += 16) {
-            windows.push({ dx, dy, lit: Math.random() > 0.25 });
-          }
-        }
-      }
-      elements.push({
-        x: Math.random() * 9000,
-        w, h, type,
-        // Steel-grey factory walls
-        color: `rgb(${30 + Math.floor(Math.random() * 20)},${30 + Math.floor(Math.random() * 18)},${35 + Math.floor(Math.random() * 15)})`,
-        windows
-      });
-    }
-    return elements;
-  }
+  /**
+   * Switch worlds. Every colour and the whole parallax backdrop comes from
+   * themes.js — a new world is one entry there and nothing here.
+   */
+  setTheme(id) {
+    this.theme = id;
+    this.themeDef = themeDef(id);
+    this.backdrop = this.themeDef.backdrop.generate();
+    this._skyGrad = null;               // force the cached gradient to rebuild
 
-  _generateBgElements() {
-    const elements = [];
-    // Background buildings/ruins
-    for (let i = 0; i < 30; i++) {
-      const w = 40 + Math.random() * 80;
-      const h = 60 + Math.random() * 200;
-      // Pre-compute lit window offsets (relative to building top-left) to avoid
-      // calling Math.random() every frame, which caused windows to flicker.
-      const windows = [];
-      for (let dy = 10; dy < h - 10; dy += 18) {
-        for (let dx = 5; dx < w - 8; dx += 14) {
-          if (Math.random() >= 0.01) windows.push({ dx, dy }); // ~99% lit
-        }
-      }
-      elements.push({
-        x: Math.random() * 8000,
-        y: 0,
-        w, h,
-        color: `rgb(${15 + Math.floor(Math.random() * 20)},${20 + Math.floor(Math.random() * 20)},${15 + Math.floor(Math.random() * 15)})`,
-        windows
-      });
+    // Re-colour the platforms that already exist. The Level generates its first
+    // stretch in the constructor and the world is only chosen afterwards, so
+    // without this the opening of an industrial round kept its forest greens —
+    // which was visible as a green ground slab sitting in a factory.
+    const { tiles, accents } = this.themeDef;
+    for (const p of this.platforms) {
+      if (p.decorated) continue;                 // boost pads own their colours
+      const tier = p.tier || 0;
+      p.tileColor = tiles[tier];
+      p.accentColor = accents[tier];
     }
-    return elements;
   }
 
   generate() {
-    // Ground platform
+    // Ground platform — takes the theme's tier-0 colour, not a hard-coded green.
     this.platforms.push({
       x: 0,
       y: this.groundY,
       width: 400,
       height: 60,
-      tileColor: '#2d4a2d',
+      tileColor: this.themeDef.tiles[0],
+      tier: 0,
       isGround: true
     });
     this.lastPlatformX = 200;
@@ -138,13 +110,8 @@ export class Level {
 
     const y = this.tiers[newTier] + (Math.random() - 0.5) * 20;
 
-    // Colour deepens with height — forest or industrial palette
-    const tileColors   = this.theme === 'industrial'
-      ? ['#3a3a42', '#404048', '#454550', '#4a4a55', '#50505a']
-      : ['#2d4a2d', '#325233', '#3a5a3a', '#426242', '#4a6a4a'];
-    const accentColors = this.theme === 'industrial'
-      ? ['#22222a', '#26262e', '#2a2a32', '#2e2e36', '#32323a']
-      : ['#1a3a1a', '#1f3f1f', '#253a25', '#2a4a2a', '#304a30'];
+    // Colour deepens with height — the palette comes from the theme.
+    const { tiles: tileColors, accents: accentColors } = this.themeDef;
 
     const platform = {
       x, y, width,
@@ -238,126 +205,42 @@ export class Level {
     const cameraX = this.cameraX;
     const ch = this.canvas.height;
     const cw = this.canvas.width;
-    const industrial = this.theme === 'industrial';
+    const T = this.themeDef;
 
     // ── Sky ──────────────────────────────────────────────────────────────────
-    const skyKey = industrial ? 'ind' : 'for';
-    if (!this._skyGrad || this._skyGradH !== ch || this._skyGradKey !== skyKey) {
+    if (!this._skyGrad || this._skyGradH !== ch || this._skyGradKey !== this.theme) {
       const grad = ctx.createLinearGradient(0, 0, 0, ch);
-      if (industrial) {
-        grad.addColorStop(0, '#0e0c10');   // near-black purple-grey
-        grad.addColorStop(0.45, '#1a1218'); // dark charcoal
-        grad.addColorStop(0.85, '#251810'); // amber haze near ground
-        grad.addColorStop(1,    '#321d08'); // warm copper glow
-      } else {
-        grad.addColorStop(0, '#050a05');
-        grad.addColorStop(0.6, '#0a150a');
-        grad.addColorStop(1, '#0f1a0f');
-      }
+      for (const [stop, color] of T.sky) grad.addColorStop(stop, color);
       this._skyGrad = grad;
       this._skyGradH = ch;
-      this._skyGradKey = skyKey;
+      this._skyGradKey = this.theme;
     }
     ctx.fillStyle = this._skyGrad;
     ctx.fillRect(0, 0, cw, ch);
 
-    if (industrial) {
-      // ── Industrial background — factories & smokestacks (parallax 0.3) ────
-      for (const b of this.bgIndustrial) {
-        const bx = b.x - cameraX * 0.3;
-        const screenX = ((bx % (cw + 250)) + cw + 250) % (cw + 250) - 100;
-        const buildingTop = ch - b.h;
+    // ── Parallax backdrop — each world draws its own (see themes.js) ─────────
+    T.backdrop.draw(ctx, this.backdrop, cameraX, cw, ch);
 
-        if (b.type === 'smokestack') {
-          // Tapered chimney
-          ctx.fillStyle = b.color;
-          const taper = Math.round(b.w * 0.15);
-          ctx.fillRect(screenX + taper, buildingTop, b.w - taper * 2, b.h);
-          // Copper rim at top
-          ctx.fillStyle = '#7a3e10';
-          ctx.fillRect(screenX, buildingTop, b.w, 4);
-          // Smoke puff (animated via time)
-          const puffY = buildingTop - 18 - ((Date.now() / 1200 + b.x * 0.01) % 1) * 25;
-          ctx.save();
-          ctx.globalAlpha = 0.18;
-          ctx.fillStyle = '#888888';
-          ctx.beginPath();
-          ctx.ellipse(screenX + b.w / 2, puffY, b.w * 0.85, 12, 0, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.restore();
-        } else {
-          // Factory building
-          ctx.fillStyle = b.color;
-          ctx.fillRect(screenX, buildingTop, b.w, b.h);
-          // Horizontal band (industrial floor marker)
-          ctx.fillStyle = '#2a2a32';
-          ctx.fillRect(screenX, buildingTop + Math.floor(b.h * 0.5), b.w, 3);
-          // Windows — furnace-orange if lit
-          const buildingTopY = buildingTop;
-          for (const { dx, dy, lit } of b.windows) {
-            ctx.fillStyle = lit ? 'rgba(255, 110, 20, 0.55)' : 'rgba(20, 20, 28, 0.8)';
-            ctx.fillRect(screenX + dx, buildingTopY + dy, 7, 9);
-          }
-        }
-      }
-
-      // Distant pipes / cable lines (parallax 0.5)
-      ctx.save();
-      ctx.globalAlpha = 0.22;
-      ctx.strokeStyle = '#5a4a30';
-      ctx.lineWidth = 3;
-      for (let i = 0; i < 18; i++) {
-        const px = ((i * 170 - cameraX * 0.5) % (cw + 200) + cw + 200) % (cw + 200) - 100;
-        const py1 = ch * 0.28 + Math.sin(i * 1.7) * 35;
-        const py2 = ch * 0.35 + Math.sin(i * 2.1) * 30;
-        ctx.beginPath();
-        ctx.moveTo(px, py1);
-        ctx.bezierCurveTo(px + 60, py1 + 20, px + 110, py2 - 20, px + 170, py2);
-        ctx.stroke();
-      }
-      ctx.restore();
-
-    } else {
-      // ── Forest background — buildings (parallax 0.3) ──────────────────────
-      for (const b of this.bgStars) {
-        const bx = b.x - cameraX * 0.3;
-        const screenX = ((bx % (cw + 200)) + cw + 200) % (cw + 200) - 100;
-        ctx.fillStyle = b.color;
-        ctx.fillRect(screenX, ch - b.h, b.w, b.h);
-        ctx.fillStyle = 'rgba(60, 90, 60, 0.4)';
-        const buildingTop = ch - b.h;
-        for (const { dx, dy } of b.windows) {
-          ctx.fillRect(screenX + dx, buildingTop + dy, 6, 8);
-        }
-      }
-
-      // Distant trees (parallax 0.5)
-      ctx.fillStyle = '#0f200f';
-      for (let i = 0; i < 25; i++) {
-        const tx = ((i * 140 - cameraX * 0.5) % (cw + 200) + cw + 200) % (cw + 200) - 100;
-        const th = 40 + (i % 5) * 20;
-        ctx.fillRect(tx, ch - this.groundY * 0 - th - 60, 12, th);
-        ctx.beginPath();
-        ctx.moveTo(tx - 18, ch - 60 - th + 10);
-        ctx.lineTo(tx + 6, ch - 60 - th - 30);
-        ctx.lineTo(tx + 30, ch - 60 - th + 10);
-        ctx.closePath();
-        ctx.fill();
-      }
-    }
+    // ── The void below ────────────────────────────────────────────────────────
+    // Drawn BEFORE the platforms so they sit on top of it. It used to be drawn
+    // after, starting at groundY + 60 — which is exactly the bottom edge of the
+    // canvas, so it had zero height and never appeared at all. In the dark
+    // forest that went unnoticed (the sky's bottom stop is near-black anyway),
+    // but in a bright world the sky showed through as a pale strip that looked
+    // like solid ground — under which the player would happily fall to his death.
+    ctx.fillStyle = T.abyss;
+    ctx.fillRect(0, this.groundY, cw, ch - this.groundY);
 
     // ── Platforms ─────────────────────────────────────────────────────────────
-    const tile = industrial
-      ? Sprites.cache.platformTileIndustrial
-      : Sprites.cache.platformTile;
-    const shadowColor = industrial ? '#12121a' : '#1a2e1a';
+    const tile = Sprites.cache[T.tileSprite];
+    const shadowColor = T.shadow;
 
     for (const p of this.getPlatformsInView()) {
       const sx = Math.round(p.x - cameraX);
       const sy = Math.round(p.y);
 
       // Base fill
-      ctx.fillStyle = p.tileColor || (industrial ? '#3a3a42' : '#2d4a2d');
+      ctx.fillStyle = p.tileColor || T.platformFill;
       ctx.fillRect(sx, sy, p.width, p.height);
 
       if (tile) {
@@ -415,8 +298,8 @@ export class Level {
       // Moving platform indicator
       if (p.moveVx !== undefined && !p.isBoostPad) {
         const phase = ((Date.now() / 300) + p.moveOriginX * 0.01) % 1;
-        const stripeColor = industrial ? '#ff8833' : '#44ff88';
-        const chevronColor = industrial ? '#ffaa66' : '#88ffaa';
+        const stripeColor = T.moveStripe;
+        const chevronColor = T.moveChevron;
         ctx.save();
         ctx.globalAlpha = 0.45;
         ctx.fillStyle = stripeColor;
@@ -445,7 +328,7 @@ export class Level {
       if (p.isGround) {
         ctx.save();
         ctx.globalAlpha = 0.18;
-        ctx.fillStyle = industrial ? '#cc6600' : '#885500';
+        ctx.fillStyle = T.groundStripe;
         for (let i = 0; i < p.width; i += 20) {
           ctx.fillRect(sx + i, sy, 10, p.height);
         }
@@ -453,19 +336,11 @@ export class Level {
       }
     }
 
-    // Ground/abyss
-    ctx.fillStyle = industrial ? '#0a080c' : '#050f05';
-    ctx.fillRect(0, this.groundY + 60, cw, ch - this.groundY - 60);
   }
 
   spawnBossArena(cameraX) {
     const startX = cameraX + this.canvas.width * 0.25;
-    const tileColors   = this.theme === 'industrial'
-      ? ['#3a3a42', '#404048', '#454550', '#4a4a55', '#50505a']
-      : ['#2d4a2d', '#325233', '#3a5a3a', '#426242', '#4a6a4a'];
-    const accentColors = this.theme === 'industrial'
-      ? ['#22222a', '#26262e', '#2a2a32', '#2e2e36', '#32323a']
-      : ['#1a3a1a', '#1f3f1f', '#253a25', '#2a4a2a', '#304a30'];
+    const { tiles: tileColors, accents: accentColors } = this.themeDef;
 
     // 4 spelling-box platforms — tagged isBossArena so _startBossRound places boxes on them
     const spellingLayout = [

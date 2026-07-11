@@ -134,7 +134,9 @@ export class Game {
 
     // Rounds 3 & 4 — industrial world (reversed direction runs)
     if (round >= 3) {
-      this.level.theme = 'industrial';
+      // setTheme, not `theme =`: the backdrop and the cached sky gradient have
+      // to be rebuilt for the new world.
+      this.level.setTheme('fabriek');
       this.player.tinted = true;
     }
 

@@ -6,6 +6,7 @@ import * as Store from './cosmetics/store.js';
 import * as Quest from './quest.js';
 import { requestPersistence, isPersisted, corrupted } from './storage.js';
 import { CONFIG } from './config.js';
+import { worldFor } from './themes/index.js';
 import { openLocker } from './screens/locker.js';
 import { openMixer } from './screens/mixer.js';
 import { rebuildCustom } from './cosmetics/skins.js';
@@ -957,6 +958,14 @@ async function startGame() {
     listMeta.lang1 || 'A', listMeta.lang2 || 'B',
     selectedList, onGameOver, activeModifier, currentRound
   );
+
+  // Rounds 1 & 2 play in the world of the language he's learning — you're doing
+  // French, you're standing in Paris (see themes/index.js worldFor). Rounds 3 & 4
+  // are always the factory; Game's constructor has already set that, and the
+  // world turning hard is the signal that the direction just reversed.
+  if (currentRound < 3) {
+    currentGame.level.setTheme(worldFor(listMeta));
+  }
 
   currentGame.start();
 }

@@ -71,14 +71,25 @@ export function wordKey(listId, answer) {
 /**
  * He answered `shotWord` when the answer was `answer`.
  *
- * Promotes the word to Nemesis once it has been missed enough times — but only
- * if there isn't one already. ONE nemesis at a time, always: a swarm of your own
- * weaknesses is the opposite of encouraging.
+ * Promotes the word to Nemesis once it has been missed enough times. ONE nemesis
+ * at a time, always: a swarm of your own weaknesses is the opposite of
+ * encouraging.
+ *
+ * But "one at a time" must not mean "one forever". A Nemesis belongs to a list,
+ * and he only meets it while playing THAT list — and homework lists change every
+ * week. So a Nemesis stuck in last week's list would never be met, never be
+ * beaten, and would block every new one for the rest of the year. The mechanic
+ * would silently die after the first list change.
+ *
+ * So the Nemesis follows him: a word escaping in the list he's actually playing
+ * takes over from one stranded in a list he has moved on from. The old one isn't
+ * punished — its wounds are kept on the word itself, so if he ever comes back to
+ * that list it escapes again exactly where it left off.
  */
 export function recordMiss(player, { listId, prompt, answer, shotWord }) {
   const s = load(player);
   const k = wordKey(listId, answer);
-  const w = s.words[k] || { misses: 0, hits: 0, confusions: {} };
+  const w = s.words[k] || { misses: 0, hits: 0, confusions: {}, wounds: 0 };
 
   w.misses++;
   if (shotWord && shotWord !== answer) {
@@ -86,15 +97,26 @@ export function recordMiss(player, { listId, prompt, answer, shotWord }) {
   }
   s.words[k] = w;
 
-  if (!s.nemesis && w.misses >= CONFIG.nemesis.missesToProvoke) {
+  const ready = w.misses >= CONFIG.nemesis.missesToProvoke;
+  const stranded = s.nemesis && s.nemesis.list !== listId;
+
+  if (ready && (!s.nemesis || stranded)) {
+    if (stranded) _release(s, s.nemesis);          // let the old one go quiet
     s.nemesis = {
       key: k, list: listId, prompt, answer,
-      wounds: 0, lastWound: null, since: dayKey(),
+      wounds: w.wounds || 0,                       // resumes where it left off
+      lastWound: null, since: dayKey(),
     };
   }
 
   save(player, s);
   return s.nemesis && s.nemesis.key === k ? s.nemesis : null;   // just escaped?
+}
+
+/** Park a Nemesis back into its word, losing nothing. */
+function _release(s, n) {
+  const w = s.words[n.key];
+  if (w) w.wounds = n.wounds;
 }
 
 export function recordHit(player, { listId, answer }) {
@@ -156,6 +178,8 @@ export function recordNemesisWin(player) {
 
   n.wounds++;
   n.lastWound = today;
+  _release(s, n);                    // mirror the wounds onto the word itself,
+                                     // so a list change can't lose them
 
   const defeated = n.wounds >= CONFIG.nemesis.woundsToDefeat;
   if (defeated) {
@@ -163,7 +187,7 @@ export function recordNemesisWin(player) {
     s.trophies.push({ word: n.answer, prompt: n.prompt, list: n.list, since: n.since, beaten: today });
     s.nemesis = null;
     // The word starts clean: it has been earned back.
-    if (s.words[n.key]) s.words[n.key].misses = 0;
+    if (s.words[n.key]) { s.words[n.key].misses = 0; s.words[n.key].wounds = 0; }
   }
 
   save(player, s);

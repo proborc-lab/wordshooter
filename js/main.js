@@ -4,6 +4,7 @@ import { Game } from './game.js';
 import * as LB from './leaderboard.js';
 import * as Store from './cosmetics/store.js';
 import * as Quest from './quest.js';
+import { CONFIG } from './config.js';
 import { openLocker } from './screens/locker.js';
 import { openMixer } from './screens/mixer.js';
 import { rebuildCustom } from './cosmetics/skins.js';
@@ -67,6 +68,8 @@ let lastVictory = false;
 let lastQuest = null;          // what the weekly quest did on the last game-over
 let lastGainedEffect = null;   // catalog item granted by the last Onbetwistbare Overwinning
 let currentRound = 1;
+let runCorrect = 0;        // correct answers across the rounds of the current run
+let lastUndeniable = false;
 let activeModifier = null;
 let _round2Modifier = null; // remember round-2 modifier to exclude it from round 4
 let _originalDirection = ''; // remember round-1 direction for resetting
@@ -741,6 +744,7 @@ function renderDirectionSelect() {
       selectedDirection = dirBtn.dataset.dir;
       _originalDirection = selectedDirection;
       currentRound = 1;
+      runCorrect = 0;
       activeModifier = null;
       _round2Modifier = null;
       startGame();
@@ -915,21 +919,26 @@ async function startGame() {
 
   // SM-11: capture reference so a stale callback from a previous game is ignored
   let thisGame;
-  const onGameOver = (score, won) => {
+  const onGameOver = (score, won, correct = 0) => {
     if (currentGame !== thisGame) return;
     lastScore = score;
     lastVictory = won;
     currentGame = null;
-    // Onbetwistbare Overwinning (all 4 rounds beaten): grant the next effect.
-    // Done here so it fires exactly once per game-over, not on each re-render.
-    lastGainedEffect = (won && currentRound === 4)
-      ? Store.unlockNextEffect(selectedPlayer)
-      : null;
-    // Weekly quest: a won round fills today. A full run fills it too and pays a
-    // bonus. A loss records nothing — it must never feel like a penalty.
-    lastQuest = won
-      ? Quest.recordWin(selectedPlayer, { fullRun: currentRound === 4 })
-      : null;
+    runCorrect += correct;              // accumulates across the rounds of one run
+
+    // Onbetwistbare Overwinning: all 4 rounds beaten AND enough words actually
+    // practised getting there. Without that second condition a 4-word custom
+    // list would hand out the whole effect ladder in minutes — and, once every
+    // effect is owned, pay 250 coins per two-minute run, forever.
+    const undeniable = won && currentRound === 4
+      && runCorrect >= CONFIG.rewards.minCorrectForVictory;
+
+    lastUndeniable = undeniable;
+    lastGainedEffect = undeniable ? Store.unlockNextEffect(selectedPlayer) : null;
+
+    // The weekly quest counts words practised, not victories — so it records
+    // every game, lost ones included.
+    lastQuest = Quest.recordGame(selectedPlayer, { correct, fullRun: undeniable });
     goToScreen(SCREENS.GAME_OVER);
   };
 
@@ -955,7 +964,7 @@ function renderGameOver() {
   const dirLabel = selectedDirection === 'a-to-b' ? `${l1} → ${l2}` : `${l2} → ${l1}`;
 
   // Undeniable Victory: player has beaten all 4 rounds
-  const trueVictory = lastVictory && currentRound === 4;
+  const trueVictory = lastUndeniable;
   // Bonus offer: player won and more rounds remain
   const offerBonus = lastVictory && currentRound < 4;
 
@@ -1034,6 +1043,7 @@ function renderGameOver() {
     if (trueVictory) {
       // Reset to round 1 with original direction
       currentRound = 1;
+      runCorrect = 0;
       activeModifier = null;
       _round2Modifier = null;
       if (_originalDirection) selectedDirection = _originalDirection;
@@ -1209,6 +1219,7 @@ function goToScreen(screen) {
   // Reset round progression when leaving a run entirely
   if (screen === SCREENS.LIST_SELECT || screen === SCREENS.TITLE || screen === SCREENS.PLAYER_SELECT) {
     currentRound = 1;
+    runCorrect = 0;
     activeModifier = null;
     _round2Modifier = null;
     _originalDirection = '';

@@ -12,6 +12,19 @@ export const CONFIG = {
   coinsPerUndeniableAllOwned: 250,  // bonus bij Onbetwistbare Overwinning als
                                     // alle effecten al bezeten zijn
 
+  // ── Reward thresholds — words practised, not victories ────────────────────
+  // A custom list may be as short as 4 words. Rewards used to count VICTORIES,
+  // so a 4-word list handed out effects in seconds and — once every effect was
+  // owned — turned the Onbetwistbare Overwinning into an infinite coin faucet
+  // (250 coins per two-minute run). So the rewards now count correct answers.
+  //
+  // Calibrated against the real lists: the shortest is 9 words (a full 4-round
+  // run = 36 correct), the median is 20 (= 80). A 4-word list yields 16.
+  rewards: {
+    minCorrectForVictory: 32,   // an Onbetwistbare Overwinning: effect + bonus coins
+    minCorrectPerDay: 20,       // before a quest day fills — one pass through a normal list
+  },
+
   // ── Colour mixer ──────────────────────────────────────────────────────────
   // Deliberately locked at the start. The mixer can reproduce any colour outfit
   // for less than it costs to buy — so if it were open on day one it would make

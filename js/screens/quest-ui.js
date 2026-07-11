@@ -75,10 +75,21 @@ export function questResult(res) {
       </div>`;
   }
 
-  // Already played today: no new day, but a full run still pays.
+  if (res.doneToday) {
+    return `
+      <div style="color:${DIM};font-size:13px;margin:8px 0">
+        ${dots(res.daysDone, res.target)} &nbsp; Vandaag al afgevinkt${bonus}
+      </div>`;
+  }
+
+  // Not there yet. Show how close he is — a day is filled by WORDS, so a short
+  // list simply means playing another round. Progress, not a scolding.
+  const left = res.needPerDay - res.correctToday;
   return `
     <div style="color:${DIM};font-size:13px;margin:8px 0">
-      ${dots(res.daysDone, res.target)} &nbsp; Vandaag al afgevinkt${bonus}
+      ${dots(res.daysDone, res.target)} &nbsp;
+      <span style="color:${GREEN}">${res.correctToday}/${res.needPerDay}</span>
+      woorden goed vandaag — nog ${left} voor je dag${bonus}
     </div>`;
 }
 

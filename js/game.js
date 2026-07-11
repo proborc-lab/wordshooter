@@ -523,7 +523,7 @@ export class Game {
       );
     }
     setTimeout(() => {
-      this._onGameOver && this._onGameOver(this.score, false);
+      this._onGameOver && this._onGameOver(this.score, false, this.correctCount);
     }, 1500);
   }
 
@@ -546,7 +546,7 @@ export class Game {
       );
     }
     setTimeout(() => {
-      this._onGameOver && this._onGameOver(this.score, true);
+      this._onGameOver && this._onGameOver(this.score, true, this.correctCount);
     }, 2000);
   }
 

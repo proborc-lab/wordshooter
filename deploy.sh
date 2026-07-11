@@ -152,7 +152,8 @@ done
 
 echo ""
 echo "→ dist/ bevat:"
-( cd "$DIST" && find . -maxdepth 2 -not -name '.' | sort | sed 's/^\./    /' | head -30 )
+# Alleen het topniveau: kort en VOLLEDIG. Een afgekapte lijst liegt over de inhoud.
+( cd "$DIST" && find . -maxdepth 1 -not -name '.' | sort | sed 's|^\./|    |' )
 echo ""
 echo "    bestanden: $(find "$DIST" -type f | wc -l) | grootte: $(du -sh "$DIST" | cut -f1)"
 echo ""

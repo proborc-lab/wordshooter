@@ -355,6 +355,26 @@ export function drawHUD(ctx, gameState) {
     ctx.restore();
   }
 
+  // === Nemesis banner — a word escaping, getting wounded, or being beaten ===
+  if (gameState.escapeTimer > 0 && gameState.escapeText) {
+    const won = gameState.escapeText.startsWith('🏆');
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, gameState.escapeTimer / 0.5);
+    const pw = Math.min(560, cw - 40);
+    const ph = 56;
+    const px = (cw - pw) / 2;
+    const py = 158;                       // under the wrong-reveal panel
+    ctx.fillStyle = won ? 'rgba(90, 70, 0, 0.9)' : 'rgba(60, 30, 70, 0.9)';
+    ctx.beginPath(); ctx.roundRect(px, py, pw, ph, 10); ctx.fill();
+    ctx.strokeStyle = won ? '#ffd23f' : '#b98cff';
+    ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = won ? '#ffd23f' : '#e0c8ff';
+    ctx.font = 'bold 19px monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(gameState.escapeText, cw / 2, py + ph / 2);
+    ctx.restore();
+  }
+
   // === Correct-pair panel (green, ~1.0s) ===
   if (gameState.correctPairTimer > 0 && gameState.correctPairText) {
     const alpha = Math.min(1, gameState.correctPairTimer / 0.3);

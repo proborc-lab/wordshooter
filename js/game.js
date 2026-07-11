@@ -2,6 +2,8 @@ import { Level } from './level.js';
 import { Player } from './player.js';
 import { WordBox, BonusBox, Monster, BatMonster, SnakeMonster, Janitor, Projectile, Turret, Medkit, Mine, Boss, SpellingBox, BossKey, PowerPickup } from './entities.js';
 import { shuffle, generateMisspellings } from './words.js';
+import { Nemesis } from './entities/nemesis.js';
+import * as WordStats from './wordstats.js';
 import { drawHUD, drawRedOverlay, drawBossHUD } from './ui.js';
 import { Effects } from './effects.js';
 import { CONFIG } from './config.js';
@@ -55,6 +57,12 @@ export class Game {
     this.timer = this.timerMax;
     this.redIntensity = 0;
     this.boxes = [];
+    this.nemesis = null;
+    this.escapeText = '';
+    this.escapeTimer = 0;
+    // The word that got away — if this list has one. It comes back as a creature
+    // every time its turn comes round in the rotation.
+    this._nemesisWord = WordStats.getNemesis(playerName, listName);
     this.monsters = [];
     this.projectiles = [];
     this.level = new Level(canvas);
@@ -185,6 +193,7 @@ export class Game {
     if (this.gameOver || this.victory) return;
     // Clear existing boxes
     this.boxes = [];
+    this.nemesis = null;
 
     const currentWord = this.getCurrentWord();
     if (!currentWord) {
@@ -197,6 +206,15 @@ export class Game {
 
     const n = this.getBoxCount();
     const answer = this.getAnswer();
+
+    // The word he keeps missing comes back as a creature instead of a row of
+    // boxes. It arrives every time this word's turn comes round — it stays in
+    // the rotation like any other word, so practising the list ten times means
+    // meeting it ten times. Killing it still takes days (one wound per day).
+    if (this._nemesisWord && this._nemesisWord.answer === answer) {
+      this._spawnNemesis(answer);
+      return;
+    }
 
     // Get distractors from word list (not the current word)
     const distractors = this.words
@@ -231,6 +249,34 @@ export class Game {
     this.level.placeWordBoxes(this.boxes, placeFrom);
 
     // No-Peek: reset visibility timer
+    this.noPeekTimer = 2.5;
+    return;
+  }
+
+  /**
+   * Build the Nemesis: a stack of word boxes, one of which is the answer. The
+   * others are the words he ACTUALLY confuses it with (wordstats), padded from
+   * the list if he hasn't confused it with enough yet. Random words would let
+   * him eliminate his way to the answer — his own confusions won't.
+   */
+  _spawnNemesis(answer) {
+    const want = CONFIG.nemesis.segments;
+    const confusions = WordStats.confusionsFor(this.playerName, this._listName, answer);
+
+    const pool = [...confusions];
+    for (const w of shuffle(this.words)) {          // pad with list words if needed
+      const val = this.direction === 'a-to-b' ? w.b : w.a;
+      if (val !== answer && !pool.includes(val)) pool.push(val);
+      if (pool.length >= want - 1) break;
+    }
+
+    const items = shuffle([
+      { word: answer, isCorrect: true },
+      ...pool.slice(0, want - 1).map(word => ({ word, isCorrect: false })),
+    ]);
+
+    const x = this.cameraX + this.canvas.width * 0.62;
+    this.nemesis = new Nemesis(x, this.level.groundY, items);
     this.noPeekTimer = 2.5;
 
     // Boxes Move: assign oscillating velocity to each word box
@@ -280,9 +326,31 @@ export class Game {
     this.boxes.push(bonus);
   }
 
+  /**
+   * The answer segment was hit. Only ONE wound per calendar day counts (see
+   * wordstats.js) — beat it five times tonight and it's still one wound. He can
+   * practise the word as often as he likes; killing it takes three days, because
+   * a word beaten three times in one evening hasn't been learned yet.
+   */
+  _onNemesisBeaten() {
+    const r = WordStats.recordNemesisWin(this.playerName);
+    if (r.defeated) {
+      this._nemesisWord = null;
+      this.escapeText = `🏆 ${this.getAnswer()} VERSLAGEN!`;
+      this.escapeTimer = 3;
+    } else if (r.wounded) {
+      this.escapeText = `${this.getAnswer()} gewond — ${r.wounds}/${CONFIG.nemesis.woundsToDefeat}`;
+      this.escapeTimer = 2.2;
+    }
+    // Already wounded today: no banner. He's just practising, and that's fine.
+  }
+
   onCorrectHit(box) {
     this.combo++;
     this.consecutiveWrong = 0;
+    WordStats.recordHit(this.playerName, {
+      listId: this._listName, answer: this.getAnswer(),
+    });
     // RE-01: correct answer reduces red tint
     this.redIntensity = Math.max(0, this.redIntensity - 0.3);
 
@@ -393,6 +461,19 @@ export class Game {
       const answer = this.direction === 'a-to-b' ? _ww.b : _ww.a;
       this.wrongRevealText  = `✗ ${prompt} → ${answer}`;
       this.wrongRevealTimer = 1.8;
+
+      // Remember not just THAT he got it wrong, but what he answered instead.
+      // "He misses vakantie" is nearly useless; "he answers strand when asked
+      // vakantie" names the exact knot — and it's what the Nemesis will stand
+      // next to him, so guessing by elimination stops working.
+      const escaped = WordStats.recordMiss(this.playerName, {
+        listId: this._listName, prompt, answer, shotWord: box && box.word,
+      });
+      if (escaped && !this._nemesisWord) {
+        this._nemesisWord = escaped;
+        this.escapeText = `${answer} is ontsnapt!`;
+        this.escapeTimer = 2.4;
+      }
     }
 
     // RE-01: accumulate red tint per wrong answer
@@ -1018,6 +1099,12 @@ export class Game {
       proj.update(dt);
     }
 
+    // Update the Nemesis (it paces; it does not wait on a platform)
+    if (this.nemesis) {
+      this.nemesis.update(dt);
+      if (!this.nemesis.alive) this.nemesis = null;
+    }
+
     // Update boxes
     for (const box of this.boxes) {
       box.update(dt);
@@ -1239,6 +1326,7 @@ export class Game {
 
     if (this.correctPairTimer > 0) this.correctPairTimer -= dt;
     if (this.wrongRevealTimer  > 0) this.wrongRevealTimer  -= dt;
+    if (this.escapeTimer       > 0) this.escapeTimer       -= dt;
 
     // Streak notify timer
     if (this.streakNotifyTimer > 0) {
@@ -1264,9 +1352,29 @@ export class Game {
 
     // === Collision detection ===
 
-    // Player projectiles vs world (single pass: boxes → monsters → turrets)
+    // Player projectiles vs world (single pass: nemesis → boxes → monsters → turrets)
     for (const proj of this.projectiles) {
       if (!proj.fromPlayer || !proj.alive) continue;
+
+      // vs the Nemesis. Hitting the wrong segment costs exactly what a wrong box
+      // costs — one heart — and the creature stays WHOLE. If wrong segments fell
+      // away he could eliminate his way to the answer, which is the guessing we
+      // built this thing to stop.
+      if (this.nemesis && !this.nemesis.beaten) {
+        const seg = this.nemesis.segmentAt(proj);
+        if (seg) {
+          proj.alive = false;
+          seg.hit(seg.isCorrect);
+          if (seg.isCorrect) {
+            this.nemesis.defeat();
+            this._onNemesisBeaten();
+            this.onCorrectHit(seg);
+          } else {
+            this.onWrongHit(seg);
+          }
+          continue;
+        }
+      }
 
       // vs WordBox / BonusBox
       for (const box of this.boxes) {
@@ -1556,6 +1664,9 @@ export class Game {
       box.draw(ctx, this.cameraX);
     }
 
+    // Draw the Nemesis
+    if (this.nemesis) this.nemesis.draw(ctx, this.cameraX);
+
     // Draw spelling boxes (boss fight)
     for (const sb of this.spellingBoxes) {
       sb.draw(ctx, this.cameraX);
@@ -1789,6 +1900,8 @@ export class Game {
       correctPairTimer: this.correctPairTimer,
       wrongRevealText:  this.wrongRevealText,
       wrongRevealTimer: this.wrongRevealTimer,
+      escapeText: this.escapeText,
+      escapeTimer: this.escapeTimer,
     };
     drawHUD(ctx, hudState);
     CoinFX.draw(ctx);   // coins land on top of the HUD counter

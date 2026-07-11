@@ -11,6 +11,7 @@ import { openLocker } from './screens/locker.js';
 import { openMixer } from './screens/mixer.js';
 import { rebuildCustom } from './cosmetics/skins.js';
 import { questStrip, questResult, questBoard } from './screens/quest-ui.js';
+import { trophyButton, trophyWall } from './screens/trophy-ui.js';
 
 // ---- Canvas setup ----
 const canvas = document.getElementById('gameCanvas');
@@ -49,7 +50,8 @@ const SCREENS = {
   LEADERBOARD: 'LEADERBOARD',
   LOCKER: 'LOCKER',
   QUEST_BOARD: 'QUEST_BOARD',
-  MIXER: 'MIXER'
+  MIXER: 'MIXER',
+  TROPHIES: 'TROPHIES'
 };
 
 let currentScreen = SCREENS.TITLE;
@@ -144,6 +146,7 @@ function renderCurrentScreen() {
     case SCREENS.LOCKER:         renderLocker(); break;
     case SCREENS.QUEST_BOARD:    renderQuestBoard(); break;
     case SCREENS.MIXER:          renderMixer(); break;
+    case SCREENS.TROPHIES:       renderTrophies(); break;
     default:                     break;
   }
 }
@@ -592,6 +595,7 @@ function renderListSelect() {
           <span style="font-size:11px;opacity:0.8;margin-left:8px;color:#ffd23f">🪙 ${Store.getCoins(selectedPlayer)}</span>
         </button>
         ${_mixerButtonHTML()}
+        ${trophyButton(selectedPlayer)}
         <div class="menu-section-title">Taalcombinatie</div>
         ${pairBtns}
         <button class="menu-btn back-btn" id="backBtn" style="font-size:13px">← TERUG</button>
@@ -607,6 +611,7 @@ function renderListSelect() {
     if (Store.mixerStatus(selectedPlayer).unlocked) {
       document.getElementById('mixerBtn').addEventListener('click', () => goToScreen(SCREENS.MIXER));
     }
+    document.getElementById('trophyBtn').addEventListener('click', () => goToScreen(SCREENS.TROPHIES));
     overlay.querySelector('.menu-panel').addEventListener('click', e => {
       const btn = e.target.closest('[data-langpair]');
       if (btn) { _lsLangPair = btn.dataset.langpair; renderListSelect(); }
@@ -1247,6 +1252,13 @@ function renderMixer() {
     isActive: () => currentScreen === SCREENS.MIXER,
     onExit: () => goToScreen(SCREENS.LIST_SELECT),
   });
+}
+
+// ---- TROPHIES ----
+function renderTrophies() {
+  showOverlay(trophyWall(selectedPlayer));
+  document.getElementById('trophyBackBtn')
+    .addEventListener('click', () => goToScreen(SCREENS.LIST_SELECT));
 }
 
 // ---- QUEST BOARD ----

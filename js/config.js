@@ -25,6 +25,17 @@ export const CONFIG = {
     minCorrectPerDay: 20,       // before a quest day fills — one pass through a normal list
   },
 
+  // ── The Nemesis ───────────────────────────────────────────────────────────
+  // The word he keeps getting wrong grows legs and comes back as a creature —
+  // a stack of word-boxes, and one of them is the answer. He has to jump to
+  // reach the right height, so knowing the word isn't enough; he has to land it.
+  nemesis: {
+    missesToProvoke: 2,     // misses before a word escapes and becomes the Nemesis
+    woundsToDefeat: 3,      // wounds needed to kill it — max ONE per calendar day
+    segments: 3,            // boxes in its body (answer + confusions)
+    walkSpeed: 42,          // px/s — it paces, it does not wait
+  },
+
   // ── Colour mixer ──────────────────────────────────────────────────────────
   // Deliberately locked at the start. The mixer can reproduce any colour outfit
   // for less than it costs to buy — so if it were open on day one it would make

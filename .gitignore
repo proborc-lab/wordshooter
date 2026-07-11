@@ -3,3 +3,6 @@
 
 # Build-uitvoer van deploy.sh
 dist/
+
+# Persoonlijk hulpscript: bevat een sessie-ID dat alleen lokaal iets betekent
+resume.sh

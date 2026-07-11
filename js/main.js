@@ -4,6 +4,7 @@ import { Game } from './game.js';
 import * as LB from './leaderboard.js';
 import * as Store from './cosmetics/store.js';
 import * as Quest from './quest.js';
+import { requestPersistence, isPersisted, corrupted } from './storage.js';
 import { CONFIG } from './config.js';
 import { openLocker } from './screens/locker.js';
 import { openMixer } from './screens/mixer.js';
@@ -74,6 +75,13 @@ let activeModifier = null;
 let _round2Modifier = null; // remember round-2 modifier to exclude it from round 4
 let _originalDirection = ''; // remember round-1 direction for resetting
 const audio = new AudioManager();
+
+// Ask the browser to protect this origin's storage from automatic eviction.
+// A whole school year of quest stamps lives in there and cannot be re-earned.
+// Fire and forget — the mission screen reports the answer (see _storageWarningHTML).
+requestPersistence().then(ok => {
+  console.info(ok ? 'Opslag is beschermd.' : 'Opslag is NIET beschermd — de browser mag hem opruimen.');
+});
 
 // Title-screen animation state (module-level so we can cancel/remove on re-entry)
 let _titleAnimId = null;
@@ -570,6 +578,7 @@ function renderListSelect() {
       <div class="menu-panel">
         <div class="menu-section-title">Soldaat: ${selectedPlayer}</div>
         <div class="menu-title" style="font-size:32px;margin-bottom:6px">KIES MISSIE</div>
+        ${_storageWarningHTML()}
         <div class="menu-section-title">Deze week</div>
         ${questStrip(selectedPlayer)}
         <input class="menu-input" id="listSearch" type="search" placeholder="Doorzoek alle lijsten…" autocomplete="off" />
@@ -1159,6 +1168,41 @@ function renderLeaderboard() {
       goToScreen(SCREENS.PLAYER_SELECT);
     }
   });
+}
+
+/**
+ * Only speaks up when something is actually wrong with the storage. Silence is
+ * the normal state — a permanent "your data might vanish" banner is noise that
+ * everyone learns to ignore, which is worse than not warning at all.
+ */
+function _storageWarningHTML() {
+  if (corrupted.length > 0) {
+    return `<div style="border:2px solid #cc4444;border-radius:6px;padding:8px;margin-bottom:8px;
+                        color:#ff8888;font-size:12px;line-height:1.5">
+      ⚠ Er was opgeslagen voortgang die niet gelezen kon worden.
+      De oude gegevens zijn bewaard (niet overschreven) — vraag een volwassene
+      om te kijken voor je verder speelt.
+    </div>`;
+  }
+  // Only nag once there is something worth losing. A brand-new player has no
+  // coins, no outfits and no stamps — warning him about losing them is noise,
+  // and noise on the first screen is how a warning gets trained away.
+  if (isPersisted() === false && _hasProgress()) {
+    return `<div style="border:1px solid #7a6a2a;border-radius:6px;padding:8px;margin-bottom:8px;
+                        color:#c8b060;font-size:12px;line-height:1.5">
+      ⚠ Je browser mag deze voortgang opruimen. Installeer het spel
+      (klik op het installeer-icoon in de adresbalk) om munten, outfits en je
+      jaarkaart veilig te stellen.
+    </div>`;
+  }
+  return '';
+}
+
+/** Is there anything in this player's save that would hurt to lose? */
+function _hasProgress() {
+  const s = Store.getState(selectedPlayer);
+  if (s.coins > 0 || s.owned.length > 0) return true;
+  return Quest.getState(selectedPlayer).stamps > 0;
 }
 
 /**

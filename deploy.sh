@@ -14,6 +14,9 @@ DIST="$ROOT/dist"
 # --- Allowlist: wat WEL mee moet (alles wat hier niet staat, gaat niet mee) ---
 FILES=(
   index.html
+  manifest.webmanifest
+  icon-192.png
+  icon-512.png
 )
 DIRS=(
   css

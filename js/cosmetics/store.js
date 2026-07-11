@@ -8,6 +8,7 @@
 
 import { getCosmetic, effectLadder, byType } from './catalog.js';
 import { getSwatch, isFree } from './swatches.js';
+import { readJSON, writeJSON } from '../storage.js';
 import { CONFIG } from '../config.js';
 
 const KEY = 'wordshooter_cosmetics';
@@ -29,29 +30,20 @@ function defaults() {
 
 function load(player) {
   const base = defaults();
-  try {
-    const raw = localStorage.getItem(keyFor(player));
-    if (!raw) return base;
-    const s = JSON.parse(raw);
-    return {
-      ...base,
-      ...s,
-      equipped: { ...base.equipped, ...(s.equipped || {}) },
-      owned: Array.isArray(s.owned) ? s.owned : [],
-      swatches: Array.isArray(s.swatches) ? s.swatches : [],
-      custom: { ...base.custom, ...(s.custom || {}) },
-    };
-  } catch (e) {
-    return base;
-  }
+  const s = readJSON(keyFor(player), null);
+  if (!s) return base;
+  return {
+    ...base,
+    ...s,
+    equipped: { ...base.equipped, ...(s.equipped || {}) },
+    owned: Array.isArray(s.owned) ? s.owned : [],
+    swatches: Array.isArray(s.swatches) ? s.swatches : [],
+    custom: { ...base.custom, ...(s.custom || {}) },
+  };
 }
 
 function save(player, state) {
-  try {
-    localStorage.setItem(keyFor(player), JSON.stringify(state));
-  } catch (e) {
-    console.warn('Could not save cosmetics:', e);
-  }
+  writeJSON(keyFor(player), state);
 }
 
 // ── Reads ──────────────────────────────────────────────────────────────────

@@ -1,14 +1,11 @@
+import { readJSON, writeJSON } from './storage.js';
+
 const LEADERBOARD_KEY = 'wordshooter_leaderboard';
 const PLAYERS_KEY = 'wordshooter_players';
 
 export function getPlayers() {
-  try {
-    const data = localStorage.getItem(PLAYERS_KEY);
-    if (!data) return [];
-    return JSON.parse(data);
-  } catch (e) {
-    return [];
-  }
+  const p = readJSON(PLAYERS_KEY, []);
+  return Array.isArray(p) ? p : [];
 }
 
 export function addPlayer(name) {
@@ -17,23 +14,14 @@ export function addPlayer(name) {
   const players = getPlayers();
   if (!players.includes(trimmed)) {
     players.push(trimmed);
-    try {
-      localStorage.setItem(PLAYERS_KEY, JSON.stringify(players));
-    } catch (e) {
-      console.warn('Could not save player:', e);
-    }
+    writeJSON(PLAYERS_KEY, players);
   }
 }
 
 export function getLeaderboard(listName, direction) {
   const key = `${LEADERBOARD_KEY}_${listName}_${direction}`;
-  try {
-    const data = localStorage.getItem(key);
-    if (!data) return [];
-    return JSON.parse(data);
-  } catch (e) {
-    return [];
-  }
+  const b = readJSON(key, []);
+  return Array.isArray(b) ? b : [];
 }
 
 export function submitScore(listName, direction, player, score) {
@@ -49,11 +37,7 @@ export function submitScore(listName, direction, player, score) {
   board.sort((a, b) => b.score - a.score);
   // Keep top 10
   board = board.slice(0, 10);
-  try {
-    localStorage.setItem(key, JSON.stringify(board));
-  } catch (e) {
-    console.warn('Could not save score:', e);
-  }
+  writeJSON(key, board);
   return board;
 }
 
@@ -62,12 +46,8 @@ const CUSTOM_LISTS_KEY = 'wordshooter_custom_lists';
 
 export function getCustomLists(playerName) {
   const key = `${CUSTOM_LISTS_KEY}_${playerName}`;
-  try {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : [];
-  } catch (e) {
-    return [];
-  }
+  const l = readJSON(key, []);
+  return Array.isArray(l) ? l : [];
 }
 
 export function saveCustomList(playerName, list) {
@@ -76,19 +56,11 @@ export function saveCustomList(playerName, list) {
   const idx = lists.findIndex(l => l.id === list.id);
   if (idx >= 0) lists[idx] = list;
   else lists.push(list);
-  try {
-    localStorage.setItem(key, JSON.stringify(lists));
-  } catch (e) {
-    console.warn('Could not save custom list:', e);
-  }
+  writeJSON(key, lists);
 }
 
 export function deleteCustomList(playerName, listId) {
   const key = `${CUSTOM_LISTS_KEY}_${playerName}`;
   const lists = getCustomLists(playerName).filter(l => l.id !== listId);
-  try {
-    localStorage.setItem(key, JSON.stringify(lists));
-  } catch (e) {
-    console.warn('Could not delete custom list:', e);
-  }
+  writeJSON(key, lists);
 }

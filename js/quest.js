@@ -25,6 +25,7 @@
 
 import { CONFIG } from './config.js';
 import * as Store from './cosmetics/store.js';
+import { readJSON, writeJSON } from './storage.js';
 
 const KEY = 'wordshooter_quest';
 
@@ -56,20 +57,15 @@ function defaults() {
 function load(player) {
   const base = defaults();
   let s = base;
-  try {
-    const raw = localStorage.getItem(keyFor(player));
-    if (raw) {
-      const p = JSON.parse(raw);
-      s = {
-        ...base,
-        ...p,
-        days: Array.isArray(p.days) ? p.days : [],
-        weeks: Array.isArray(p.weeks) ? p.weeks : [],
-        counts: (p.counts && typeof p.counts === 'object') ? p.counts : {},
-      };
-    }
-  } catch (e) {
-    return base;
+  const p = readJSON(keyFor(player), null);
+  if (p) {
+    s = {
+      ...base,
+      ...p,
+      days: Array.isArray(p.days) ? p.days : [],
+      weeks: Array.isArray(p.weeks) ? p.weeks : [],
+      counts: (p.counts && typeof p.counts === 'object') ? p.counts : {},
+    };
   }
   // New week → the day tally starts over. Completed weeks are kept forever.
   const now = weekKey();
@@ -80,11 +76,7 @@ function load(player) {
 }
 
 function save(player, state) {
-  try {
-    localStorage.setItem(keyFor(player), JSON.stringify(state));
-  } catch (e) {
-    console.warn('Could not save quest:', e);
-  }
+  writeJSON(keyFor(player), state);
 }
 
 // ── Reads ──────────────────────────────────────────────────────────────────

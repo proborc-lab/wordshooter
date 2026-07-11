@@ -1,0 +1,53 @@
+/** art/zomer.js — Summer, sun and beach. */
+
+export const ZOMER = {
+  strandbal: [[
+    '............',
+    '...RRWWBB...',
+    '..RRRWWBBB..',
+    '.RRRRWWBBBB.',
+    '.RRRWWWWBBB.',
+    'YYYWWLWWYYYY',
+    'YYYWWWWWYYYY',
+    '.GGGWWWWGGG.',
+    '.GGGGWWGGGG.',
+    '..GGGWWGGG..',
+    '...GGWWGG...',
+  ], [
+    '............',
+    '...BBWWRR...',
+    '..BBBWWRRR..',
+    '.BBBBWWRRRR.',
+    '.BBBWWWWRRR.',
+    'GGGWWLWWGGGG',
+    'GGGWWWWWGGGG',
+    '.YYYWWWWYYY.',
+    '.YYYYWWYYYY.',
+    '..YYYWWYYY..',
+    '...YYWWYY...',
+  ]],
+
+  ijsje: [[
+    '............',
+    '...MMMMMM...',
+    '..MMWMMMMM..',
+    '..MMMMMMMM..',
+    '..RRRRRRRR..',
+    '..WNWNWNWN..',
+    '...NWNWNW...',
+    '...NNWNWN...',
+    '....NWNW....',
+    '.....NN.....',
+  ], [
+    '............',
+    '...MMMMMM...',
+    '..MMMWMMMM..',
+    '..MMMMMMMM..',
+    '..RRRRRRRR..',
+    '..WNWNWNWN..',
+    '...NWNWNW...',
+    '...NNWNWN...',
+    '....NWNW....',
+    '.....NN.....',
+  ]],
+};

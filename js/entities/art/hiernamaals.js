@@ -1,0 +1,83 @@
+/**
+ * art/hiernamaals.js — The afterlife. Spooky, never morbid: this is a kids'
+ * game, so it's grinning skulls and friendly wisps, not gore.
+ */
+
+export const HIERNAMAALS = {
+  skeletje: [[
+    '............',
+    '...WWWWWW...',
+    '..WWWWWWWW..',
+    '.WWWWWWWWWW.',
+    '.WWKKWWKKWW.',
+    '.WWKKWWKKWW.',
+    '.WWWWWWWWWW.',
+    '..WWWKWWWW..',
+    '..WKWKWKWW..',
+    '...WWWWWW...',
+    '....K..K....',
+  ], [
+    '............',
+    '...WWWWWW...',
+    '..WWWWWWWW..',
+    '.WWWWWWWWWW.',
+    '.WWKKWWKKWW.',
+    '.WWKKWWKKWW.',
+    '.WWWWWWWWWW.',
+    '..WWWKWWWW..',
+    '..WKWKWKWW..',
+    '...WWWWWW...',
+    '...K....K...',
+  ]],
+
+  dwaallichtje: [[
+    '............',
+    '.....C......',
+    '....CCC.....',
+    '...CCBCC....',
+    '...CBBBC....',
+    '..CBKBKBC...',
+    '..CBBBBBC...',
+    '...CBBBC....',
+    '....CCC.....',
+    '.....C......',
+  ], [
+    '.....C......',
+    '....CCC.....',
+    '...CCCCC....',
+    '..CCBBBCC...',
+    '..CBBBBBC...',
+    '.CBKBBBKBC..',
+    '.CBBBBBBBC..',
+    '..CBBBBBC...',
+    '...CCCCC....',
+    '....CCC.....',
+    '.....C......',
+  ]],
+
+  grafsteentje: [[
+    '............',
+    '...SSSSSS...',
+    '..SSSSSSSS..',
+    '.SSSSSSSSSS.',
+    '.SSDDSSDDSS.',
+    '.SSSSSSSSSS.',
+    '.SSDDDDDDSS.',
+    '.SSSSSSSSSS.',
+    '.SSDDDDDDSS.',
+    '.SSSSSSSSSS.',
+    'gggggggggggg',
+  ], [
+    '............',
+    '...SSSSSS...',
+    '..SSSSSSSS..',
+    '.SSSSSSSSSS.',
+    '.SSDDSSDDSS.',
+    '.SSSSSSSSSS.',
+    '.SSDDDDDDSS.',
+    '.SSSSSSSSSS.',
+    '.SSDDDDDDSS.',
+    '.SSSSSSSSSS.',
+    'ggggggggggg.',
+  ]],
+};

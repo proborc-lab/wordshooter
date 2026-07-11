@@ -15,7 +15,7 @@
 import { Sprites, mkCanvas } from '../sprites.js';
 import { getCosmetic } from '../cosmetics/catalog.js';
 import { CONFIG } from '../config.js';
-import { FOLLOWER_ART, PALETTE, SIZE } from './follower-art.js';
+import { FOLLOWER_ART, PALETTE, SIZE, duplicateKeys } from './art/index.js';
 
 // ── Sprite rendering — grids in follower-art.js become canvases ──────────────
 
@@ -36,6 +36,12 @@ function renderFrame(rows) {
 }
 
 export function initFollowers() {
+  const dupes = duplicateKeys();
+  if (dupes.length) {
+    // Two theme files claiming the same key would silently clobber each other's
+    // art. Better to shout at load than to ship a mystery sprite.
+    console.error('follower-art: duplicate grid keys across themes:', dupes.join(', '));
+  }
   for (const key in FOLLOWER_ART) {
     Sprites.cache[`follower_${key}`] = FOLLOWER_ART[key].map(renderFrame);
   }
@@ -61,6 +67,7 @@ export class Follower {
     this.offsetY  = p.offsetY  != null ? p.offsetY  : d.offsetY;
     this.alpha    = p.alpha    != null ? p.alpha    : d.alpha;
     this.scale    = p.scale    != null ? p.scale    : 2;
+    this.fps      = p.fps      != null ? p.fps      : d.fps;
 
     this.x = 0;
     this.y = 0;
@@ -98,8 +105,16 @@ export class Follower {
       this.y += (targetY - this.y) * t;
     }
 
+    // Cycle through ALL frames, not just two. This used to be `frame ^= 1`,
+    // which silently capped every follower at a 2-frame flip — a 10-frame gag
+    // would have played frames 0 and 1 and thrown the punchline away.
     this.animTimer += dt;
-    if (this.animTimer > 0.25) { this.animTimer = 0; this.frame ^= 1; }
+    if (this.animTimer > 1 / this.fps) {
+      this.animTimer = 0;
+      const frames = Sprites.cache[this.spriteKey];
+      const n = frames ? frames.length : 1;
+      this.frame = (this.frame + 1) % n;
+    }
     if (this.emoteTimer > 0) this.emoteTimer = Math.max(0, this.emoteTimer - dt);
   }
 

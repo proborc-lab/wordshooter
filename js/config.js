@@ -54,6 +54,7 @@ export const CONFIG = {
     offsetX: -22,       // behind the player (sign flips with facing)
     offsetY: -14,       // slightly above
     alpha: 0.85,
+    fps: 4,             // animation speed; a gag can slow down or speed up its own timing
   },
 
   // The Kledingkast draws the poppetje at 4× (in-game it's 2×), so the follower

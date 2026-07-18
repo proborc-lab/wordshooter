@@ -1,36 +1,28 @@
-# uitgeleerd.nl — Claude Instructions
+# Wordshooter — Claude Instructions
 
-Deze repo is de site, niet één spel. In de root staat de portal; elk spel dat
-hier gehost wordt staat in zijn eigen map met zijn eigen CLAUDE.md.
+Dit spel is één van de spellen op uitgeleerd.nl. De portal met de tegels is een
+aparte repo (`Uitgeleerd`); deze repo is alleen het spel. `dist/` gaat naar
+`uitgeleerd.nl/wordshooter/`, niet naar de web-root.
 
-```
-/                 portal (index.html, css/site.css)
-  wordshooter/    het spel — eigen regels in wordshooter/CLAUDE.md
-```
+## Waar het staat
 
-## Portal-regels
+- **Alle paden relatief houden.** Het spel woont in een submap en hoort niet te
+  weten in wélke. Eén `/js/…` of `/data/…` zoekt vanaf de web-root en vindt
+  niets. `deploy.sh` faalt hierop.
+- **De origin nooit veranderen.** localStorage hangt aan `uitgeleerd.nl`. Een
+  eigen (sub)domein voor het spel maakt een schooljaar aan muntjes, outfits en
+  Nemesis-wonden onbereikbaar. Een submap doet dat niet — vandaar een submap.
 
-- De portal is een **gewone webpagina, geen PWA**. Twee van de vier tegels
-  wijzen naar andere sites; een standalone app die zichzelf voortdurend
-  verlaat is verwarrend. Manifests horen bij de spellen, niet bij de portal.
-- **Niets hotlinken.** Geen logo's, screenshots of fonts van andere domeinen.
-  Een tegel mag niet stukgaan omdat andermans site traag is. Tegel-art wordt
-  hier getekend (inline SVG), net zoals het spel zijn sprites zelf tekent.
-- **Externe links in dezelfde tab.** Er staat niets op de portal om te
-  bewaren, en tabklutter op een tablet is voor een kind erger dan terug
-  drukken. Wel altijd zichtbaar markeren dat je de site verlaat.
-- Elke tegel die naar een **lokale** map wijst moet een bestaande map hebben.
-  `deploy.sh` controleert dat en faalt hard. Externe URL's worden bewust niet
-  gecontroleerd — dan zou je niet kunnen uploaden omdat andermans site plat
-  ligt.
+## Architecture Rules
 
-## Gedeelde code
+- Max 400 lines per JS file. Flag before exceeding and propose a split first.
+- New entity types go in their own file under `entities/`.
+- New screens go in their own file under `screens/`.
+- No `if (x === 'variantName')` chains for extensible systems — use a config object or strategy pattern instead. Flag when we're about to do it the other way.
+- Magic numbers go in `config.js`, not inline.
+- New manifest entries must have a corresponding CSV that actually exists.
 
-Nog geen `shared/`. Er is één spel in deze repo, dus we weten nog niet wat
-gedeeld is. Wacht tot een tweede spel laat zien wat het écht nodig heeft en
-hoist dan met bewijs, niet met een gok.
+## General
 
-## Algemeen
-
-- Voordat je significante nieuwe code schrijft: stel de structuur voor en
-  wacht op akkoord.
+- When about to write something that would need to be modified in multiple places to add a new variant, stop and propose a better structure first.
+- Before writing any significant new code, propose the module structure and wait for approval.

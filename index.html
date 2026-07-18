@@ -2,113 +2,57 @@
 <html lang="nl">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>Uitgeleerd?</title>
-  <meta name="description" content="Spelletjes waar je stiekem iets van leert.">
-  <link rel="stylesheet" href="css/site.css">
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Installable as an app. Not vanity: a browser is far more willing to grant
+       persistent storage to an installed site, and persistent storage is what
+       keeps a school year of progress from being evicted. See js/storage.js. -->
+  <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#0b1310">
-  <!-- Geen manifest: dit is een portal, geen app. Twee tegels wijzen naar
-       andere sites, en een standalone app die zichzelf verlaat is verwarrend.
-       De manifests horen bij de spellen zelf (zie wordshooter/). -->
-  <link rel="icon" href="data:image/svg+xml,&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'&gt;&lt;rect width='16' height='16' fill='%230b1310'/&gt;&lt;rect x='7' y='2' width='2' height='4' fill='%23a0e080'/&gt;&lt;rect x='7' y='10' width='2' height='4' fill='%23a0e080'/&gt;&lt;rect x='2' y='7' width='4' height='2' fill='%23a0e080'/&gt;&lt;rect x='10' y='7' width='4' height='2' fill='%23a0e080'/&gt;&lt;/svg&gt;">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
 </head>
 <body>
+  <!-- Portrait-mode warning (hidden in landscape via CSS) -->
+  <div id="rotate-prompt">
+    <div class="rotate-icon">&#x1F4F1;</div>
+    <p>DRAAI JE TOESTEL<br>naar liggend formaat om te spelen</p>
+  </div>
 
-  <header class="site-head">
-    <h1>Uitgeleerd<span class="q">?</span></h1>
-    <p class="tagline">Spelletjes waar je stiekem iets van leert.</p>
-  </header>
+  <!-- Small-screen landscape warning -->
+  <div id="small-screen-prompt">
+    <p>&#x1F5A5; DIT SPEL IS GEMAAKT<br>VOOR TABLETS EN COMPUTERS</p>
+    <p>Het scherm is te klein<br>om goed te spelen.</p>
+  </div>
 
-  <main>
-    <ul class="tiles">
+  <canvas id="gameCanvas"></canvas>
+  <div id="overlay" class="overlay hidden"></div>
 
-      <!-- ── 1. Wordshooter — hier op de site ─────────────────────────── -->
-      <li class="tile" style="--accent:#a0e080">
-        <a href="wordshooter/">
-          <span class="art" aria-hidden="true">
-            <svg viewBox="0 0 16 16">
-              <rect x="7"  y="1"  width="2" height="4"/>
-              <rect x="7"  y="11" width="2" height="4"/>
-              <rect x="1"  y="7"  width="4" height="2"/>
-              <rect x="11" y="7"  width="4" height="2"/>
-              <rect x="6"  y="6"  width="4" height="4"/>
-            </svg>
-          </span>
-          <span class="body">
-            <span class="title">Wordshooter</span>
-            <span class="sub">Schiet de goede vertaling aan flarden.</span>
-          </span>
-        </a>
-      </li>
+  <!-- Reset-zoom button: shown whenever the browser has zoomed in -->
+  <button id="reset-zoom-btn" class="hidden" aria-label="Zoom resetten">&#x26F6; Zoom resetten</button>
 
-      <!-- ── 2. Ontwerp Je Stad — extern ──────────────────────────────── -->
-      <li class="tile" style="--accent:#e0a860">
-        <a href="https://ontwerpjestad.nl">
-          <span class="art" aria-hidden="true">
-            <!-- Skyline met ramen. De ramen zijn niet decoratief: zonder die
-                 gaatjes is dit visueel hetzelfde plaatje als de staafjes van
-                 Kabaal hiernaast. -->
-            <svg viewBox="0 0 16 16">
-              <rect x="0"  y="8" width="5" height="8"/>
-              <rect x="6"  y="3" width="5" height="13"/>
-              <rect x="12" y="6" width="4" height="10"/>
-              <rect class="win" x="1"  y="10" width="2" height="1"/>
-              <rect class="win" x="1"  y="13" width="2" height="1"/>
-              <rect class="win" x="7"  y="5"  width="2" height="1"/>
-              <rect class="win" x="7"  y="8"  width="2" height="1"/>
-              <rect class="win" x="7"  y="11" width="2" height="1"/>
-              <rect class="win" x="13" y="8"  width="2" height="1"/>
-              <rect class="win" x="13" y="11" width="2" height="1"/>
-            </svg>
-          </span>
-          <span class="body">
-            <span class="title">Ontwerp Je Stad</span>
-            <span class="sub">Bouw je stad en maak hem leefbaar.</span>
-            <span class="away">andere site &#8599;</span>
-          </span>
-        </a>
-      </li>
+  <!-- On-screen controls — shown only during gameplay on touch devices -->
+  <div id="touch-controls" class="hidden">
+    <!-- Left cluster: move left + right only -->
+    <div id="tc-move-group">
+      <button id="tc-left"  class="tc-btn" aria-label="Naar links">&#9664;</button>
+      <button id="tc-right" class="tc-btn" aria-label="Naar rechts">&#9654;</button>
+    </div>
+    <!-- Centre: pause -->
+    <button id="tc-pause" class="tc-btn" aria-label="Pauzeren">&#9646;&#9646;</button>
+    <!-- Right cluster: jump above, shoot + knife below -->
+    <div id="tc-action-group">
+      <div id="tc-jump-row">
+        <button id="tc-jump"  class="tc-btn" aria-label="Springen">&#9650;</button>
+      </div>
+      <div id="tc-action-row">
+        <button id="tc-shoot" class="tc-btn" aria-label="Schieten">&#9679;</button>
+        <button id="tc-knife" class="tc-btn" aria-label="Mes">&#9876;</button>
+      </div>
+    </div>
+  </div>
 
-      <!-- ── 3. Kabaal — extern ───────────────────────────────────────── -->
-      <li class="tile" style="--accent:#d08ce0">
-        <a href="https://kabaal.app">
-          <span class="art" aria-hidden="true">
-            <!-- Een noot in plaats van staafjes: staafjes lijken te veel op een
-                 skyline, en een noot zegt in één oogopslag "muziek". -->
-            <svg viewBox="0 0 16 16">
-              <rect x="2"  y="10" width="5" height="4"/>
-              <rect x="7"  y="2"  width="2" height="9"/>
-              <rect x="9"  y="2"  width="3" height="2"/>
-              <rect x="11" y="4"  width="2" height="3"/>
-            </svg>
-          </span>
-          <span class="body">
-            <span class="title">Kabaal</span>
-            <span class="sub">Muziek leren door te spelen.</span>
-            <span class="away">andere site &#8599;</span>
-          </span>
-        </a>
-      </li>
-
-      <!-- ── 4. Nog leeg ──────────────────────────────────────────────── -->
-      <li class="tile tile--soon">
-        <span class="art" aria-hidden="true">
-          <svg viewBox="0 0 16 16">
-            <rect x="5" y="2"  width="6" height="2"/>
-            <rect x="9" y="4"  width="2" height="3"/>
-            <rect x="7" y="7"  width="4" height="2"/>
-            <rect x="7" y="9"  width="2" height="2"/>
-            <rect x="7" y="12" width="2" height="2"/>
-          </svg>
-        </span>
-        <span class="body">
-          <span class="title">Binnenkort</span>
-          <span class="sub">Hier komt het volgende spel.</span>
-        </span>
-      </li>
-
-    </ul>
-  </main>
-
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>

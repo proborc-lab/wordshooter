@@ -54,5 +54,12 @@
   </div>
 
   <script type="module" src="js/main.js"></script>
+  <script>
+    // Service worker: installeerbaar + offline. Relatief pad, zodat het onder
+    // /wordshooter/ dezelfde scope pakt.
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    }
+  </script>
 </body>
 </html>
